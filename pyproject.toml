@@ -1,0 +1,19 @@
+[project]
+name = "online-cinema-api"
+version = "0.1.0"
+description = "Online cinema api project that allows users to select, watch, and purchase access to movies and other video materials via the internet."
+authors = [
+    {name = "Psychox1k",email = "success01001011@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi (>=0.135.3,<0.136.0)",
+    "uvicorn (>=0.44.0,<0.45.0)",
+    "pydantic-settings (>=2.13.1,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
