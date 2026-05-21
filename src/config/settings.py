@@ -8,6 +8,17 @@ class Settings(BaseSettings):
     POSTGRES_DB_PORT: int
     POSTGRES_DB: str
 
+    SECRET_KEY_ACCESS: str
+    SECRET_KEY_REFRESH: str
+    JWT_SIGNING_ALGORITHM: str = "HS256"
+    LOGIN_TIME_DAYS: int = 7
+
+    EMAIL_HOST: str
+    EMAIL_PORT: int
+    EMAIL_HOST_USER: str
+    EMAIL_HOST_PASSWORD: str
+
+
     @property
     def database_url(self) -> str:
         return (f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
