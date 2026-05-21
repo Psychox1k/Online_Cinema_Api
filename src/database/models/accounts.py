@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List
 
 
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy import (
     ForeignKey,
     String,
@@ -69,7 +69,8 @@ class UserModel(Base):
     )
     _hashed_password: Mapped[str] = mapped_column(
         "hashed_password", String(255),
-        nullable=False)
+        nullable=False
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone),
@@ -90,6 +91,57 @@ class UserModel(Base):
         "UserGroupModel",
         back_populates="users"
     )
+
+    activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
+        "ActivationTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    password_reset_token: Mapped[Optional["PasswordResetTokenModel"]] = relationship(
+        "PasswordResetTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    refresh_tokens: Mapped[List["RefreshTokenModel"]] = relationship(
+        "RefreshTokenModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    profile: Mapped[Optional["UserProfileModel"]] = relationship(
+        "UserProfileModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    def __repr__(self):
+        return f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
+
+    def has_group(self, group_name: UserGroupEnum) -> bool:
+        return self.group.name == group_name
+
+    @classmethod
+    def create(cls, email: str, raw_password: str, group_id: int | Mapped[int]) -> "UserModel":
+        user = cls(email=email, group_id=group_id)
+        user.password = raw_password
+        return user
+
+    @property
+    def password(self) -> None:
+        raise AttributeError("Password is write-only")
+
+    @password.setter
+    def password(self, raw_password: str) -> None:
+        validators.validate_password_strength(raw_password)
+        self._hashed_password = hash_password(raw_password)
+
+    def verify_password(self, raw_password: str) -> bool:
+        return verify_password(raw_password, self._hashed_password)
+
+    @validates("email")
+    def validate_email(self, key, value):
+        return validators.validate_email(value.lower())
 
 class UserProfileModel(Base):
     __tablename__ = "user_profiles"
