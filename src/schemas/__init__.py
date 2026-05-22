@@ -11,7 +11,7 @@ from schemas.accounts import (
     UserActivationRequestSchema,
     MessageResponseSchema,
     PasswordResetRequestSchema,
-    PasswordResetCompleteRequestSchema,
+    PasswordResetCompleteSchema,
     UserLoginResponseSchema,
     UserLoginRequestSchema,
     TokenRefreshRequestSchema,
