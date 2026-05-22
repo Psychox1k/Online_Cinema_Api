@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     EMAIL_HOST_USER: str
     EMAIL_HOST_PASSWORD: str
 
+    S3_STORAGE_HOST: str
+    S3_STORAGE_PORT: int
+    S3_STORAGE_ACCESS_KEY: str
+    S3_STORAGE_SECRET_KEY: str
+    S3_BUCKET_NAME: str
+
+
 
     @property
     def database_url(self) -> str:
