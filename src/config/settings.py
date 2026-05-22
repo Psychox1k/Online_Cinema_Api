@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     S3_STORAGE_SECRET_KEY: str
     S3_BUCKET_NAME: str
 
+    REDIS_HOST: str
+    REDIS_PORT: int
+
 
 
     @property
