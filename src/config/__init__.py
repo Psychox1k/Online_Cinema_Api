@@ -1,1 +1,0 @@
-from config.dependencies import get_accounts_email_notificator
