@@ -8,7 +8,8 @@ from starlette.status import HTTP_400_BAD_REQUEST
 from config.dependencies import (
     get_jwt_auth_manager,
     get_settings,
-    get_current_user
+    get_current_user,
+    get_accounts_email_notificator
 )
 from config.settings import Settings
 from database import (
@@ -38,7 +39,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from config import get_accounts_email_notificator
 from schemas.accounts import (
     PasswordResetCompleteSchema,
     PasswordChangeRequestSchema, UserGroupUpdateSchema
