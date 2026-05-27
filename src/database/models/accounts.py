@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint
 )
 
+
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
@@ -115,6 +116,28 @@ class UserModel(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+    likes: Mapped[list["MovieLikesModel"]] = relationship(
+        "MovieLikesModel",
+        back_populates="user"
+    )
+    ratings: Mapped[list["MovieRatingModel"]] = relationship(
+        "MovieRatingModel",
+        back_populates="user"
+    )
+    comment_likes: Mapped[list["CommentLikeModel"]] = relationship(
+        "CommentLikeModel",
+        back_populates="user"
+    )
+    comments: Mapped[list["CommentModel"]] = relationship(
+        "CommentModel",
+        back_populates="user"
+    )
+    favorites: Mapped[list["MovieFavoriteModel"]] = relationship(
+        "MovieFavoriteModel",
+        back_populates="user"
+    )
+
     def __repr__(self):
         return f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
 

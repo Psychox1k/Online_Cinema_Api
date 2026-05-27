@@ -9,6 +9,21 @@ from database.models.accounts import (
     UserProfileModel
 )
 
+from database.models.movies import (
+    MovieFavoriteModel,
+    MovieModel,
+    MovieRatingModel,
+    MovieLikesModel,
+    DirectorModel,
+    StarModel,
+    GenreModel,
+    CertificationModel,
+    CommentModel,
+    CommentLikeModel,
+    MoviesGenresModel,
+    MoviesStarsModel,
+    MoviesDirectorsModel,
+)
 from database.validators import accounts as accounts_validators
 
 from database.session import (
