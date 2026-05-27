@@ -1,10 +1,7 @@
-from http.client import HTTPException
-
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import status
-from database import get_db, UserModel
+from fastapi import status, HTTPException, Depends
+from database import get_db, UserModel, UserGroupEnum
 from exceptions import BaseSecurityError
 from notifications import EmailSender, EmailSenderInterface
 from config.settings import Settings, settings
@@ -92,6 +89,27 @@ async def get_current_user(
 
     return user
 
+async def get_current_moderator(
+        current_user: UserModel = Depends(get_current_user)
+) -> UserModel:
+    if not current_user.has_group(UserGroupEnum.MODERATOR) and \
+        not current_user.has_group(UserGroupEnum.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only moderators can perform this action"
+        )
+    return current_user
+
+
+async def get_current_admin(
+        current_user:UserModel = Depends(get_current_user)
+) -> UserModel:
+    if not current_user.has_group(UserGroupEnum.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can perform this action"
+        )
+    return current_user
 
 def get_s3_storage_client(
     settings: Settings = Depends(get_settings)
@@ -116,3 +134,4 @@ def get_s3_storage_client(
         secret_key=settings.S3_STORAGE_SECRET_KEY,
         bucket_name=settings.S3_BUCKET_NAME
     )
+
