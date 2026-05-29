@@ -17,7 +17,6 @@ from sqlalchemy import (
     UniqueConstraint
 )
 
-
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
@@ -136,6 +135,18 @@ class UserModel(Base):
     favorites: Mapped[list["MovieFavoriteModel"]] = relationship(
         "MovieFavoriteModel",
         back_populates="user"
+    )
+
+    carts: Mapped[list["CartModel"]] = relationship(
+        "CartModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    notifications: Mapped[list["NotificationModel"]] = relationship(
+        "NotificationModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self):
