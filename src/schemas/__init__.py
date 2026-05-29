@@ -57,3 +57,8 @@ from schemas.accounts import (
     TokenRefreshRequestSchema,
     TokenRefreshResponseSchema
 )
+from schemas.notifications import NotificationSchema
+from schemas.carts import (
+    CartItemSchema,
+    CartSchema
+)
