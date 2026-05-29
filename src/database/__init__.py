@@ -8,7 +8,7 @@ from database.models.accounts import (
     RefreshTokenModel,
     UserProfileModel
 )
-
+from database.models.notifications import NotificationModel
 from database.models.movies import (
     MovieFavoriteModel,
     MovieModel,
