@@ -5,6 +5,7 @@ from routes import movies_router
 from routes import genres_router
 from routes import stars_router
 from routes import directors_router
+from routes import notifications_router
 app = FastAPI(title="Online Cinema API")
 
 
@@ -16,6 +17,7 @@ app.include_router(movies_router, prefix=f"{api_version_prefix}/movies", tags=["
 app.include_router(directors_router, prefix=f"{api_version_prefix}/directors", tags=["directors"])
 app.include_router(stars_router, prefix=f"{api_version_prefix}/stars", tags=["stars"])
 app.include_router(genres_router, prefix=f"{api_version_prefix}/genres", tags=["genres"])
+app.include_router(notifications_router, prefix=f"{api_version_prefix}/notifcations", tags=["notifications"])
 
 
 @app.get("/")
