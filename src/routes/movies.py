@@ -6,13 +6,44 @@ from sqlalchemy import select, func, or_, delete
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.dependencies import get_current_moderator, get_current_admin, get_current_user
-from database import get_db, MovieModel, MoviesGenresModel, GenreModel, StarModel, DirectorModel, UserModel, \
-    MovieRatingModel, MovieLikesModel, MovieFavoriteModel, CommentModel, CommentLikeModel
-from schemas import MovieDetailSchema, MovieCreateSchema, MovieUpdateSchema, MessageResponseSchema, MovieRatingSchema, \
-    CommentCreateSchema, CommentUpdateSchema
-from schemas.movies import MovieListSchema, PaginatedMoviesSchema, MovieLikeResponseSchema, MovieLikeSchema, \
-    MovieRatingResponseSchema, CommentResponseSchema
+from config.dependencies import (
+    get_current_moderator,
+    get_current_admin,
+    get_current_user,
+    get_movie_or_404
+)
+from database import (
+    get_db,
+    MovieModel,
+    MoviesGenresModel,
+    GenreModel,
+    StarModel,
+    DirectorModel,
+    UserModel,
+    MovieRatingModel,
+    MovieLikesModel,
+    MovieFavoriteModel,
+    CommentModel,
+    CommentLikeModel, UserGroupModel, NotificationModel
+)
+from database.models.carts import CartItemModel
+from schemas import (
+    MovieDetailSchema,
+    MovieCreateSchema,
+    MovieUpdateSchema,
+    MessageResponseSchema,
+    MovieRatingSchema,
+    CommentCreateSchema,
+    CommentUpdateSchema
+)
+from schemas.movies import (
+    MovieListSchema,
+    PaginatedMoviesSchema,
+    MovieLikeResponseSchema,
+    MovieLikeSchema,
+    MovieRatingResponseSchema,
+    CommentResponseSchema
+)
 
 router = APIRouter()
 
@@ -170,10 +201,9 @@ async def get_all_movies(
     }
 )
 async def create_movie(
-        movie_data: MovieCreateSchema,
-        current_user: UserModel = Depends(get_current_moderator),
-        db: AsyncSession = Depends(get_db)
-
+    movie_data: MovieCreateSchema,
+    current_user: UserModel = Depends(get_current_moderator),
+    db: AsyncSession = Depends(get_db),
 ) -> MovieDetailSchema:
 
     stmt = select(MovieModel).where(
@@ -272,20 +302,10 @@ async def create_movie(
     }
 )
 async def get_movie_by_id(
-        movie_id: int,
-        db: AsyncSession = Depends(get_db)
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    db_movie: MovieModel = Depends(get_movie_or_404)
 ) -> MovieDetailSchema:
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await db.execute(stmt)
-
-    db_movie = result.scalars().first()
-
-    if not db_movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found"
-        )
-
     stats = await get_movie_stats(movie_id, db)
 
     return MovieDetailSchema(
@@ -332,18 +352,9 @@ async def movie_update(
     movie_id: int,
     movie_data: MovieUpdateSchema,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_moderator)
+    current_user: UserModel = Depends(get_current_moderator),
+    db_movie: MovieModel = Depends(get_movie_or_404)
 ) -> MovieDetailSchema:
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await db.execute(stmt)
-
-    db_movie = result.scalars().first()
-
-    if not db_movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found"
-        )
     try:
         update_data = movie_data.model_dump(exclude_unset=True)
 
@@ -415,7 +426,7 @@ async def movie_update(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete movie",
-    description="Delete a movie. Only admins can perform this action.",
+    description="Delete a movie. Only admins can perform this action. Notifies moderators if the movie was in any user's cart.",
     responses={
         404: {
             "description": "Not Found - Movie with this ID does not exist.",
@@ -434,21 +445,29 @@ async def movie_update(
 async def movie_delete(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_admin)
+    current_user: UserModel = Depends(get_current_admin),
+    movie: MovieModel = Depends(get_movie_or_404)
 ) -> MessageResponseSchema:
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await db.execute(stmt)
 
-    db_movie = result.scalars().first()
-
-    if not db_movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found"
-        )
+    count_stmt = select(func.count()).select_from(CartItemModel).where(
+        CartItemModel.movie_id == movie_id
+    )
+    carts_count = await db.scalar(count_stmt)
 
     try:
-        await db.delete(db_movie)
+        await db.delete(movie)
+
+        if carts_count  and carts_count > 0:
+            stmt = select(UserModel).join(UserGroupModel).where(
+                UserGroupModel.name.in_(["moderator", "admin"])
+            )
+            moderators = (await db.execute(stmt)).scalars().all()
+            message_text = (f"Admin {current_user.email} deleted movie '{movie.name}' (ID: {movie.id}),"
+                            f" which was present in {carts_count} user carts.")
+            for mod in moderators:
+                db.add(NotificationModel(user_id=mod.id, message=message_text))
+
+
         await db.commit()
         return MessageResponseSchema(message="Movie was successfully deleted")
     except SQLAlchemyError:
@@ -468,18 +487,12 @@ async def movie_delete(
     description="Like or dislike a movie. If already liked/disliked — updates the vote.",
 )
 async def like_movie(
-        movie_id: int,
-        like_data: MovieLikeSchema,
-        db: AsyncSession = Depends(get_db),
-        current_user: UserModel = Depends(get_current_user)
+    movie_id: int,
+    like_data: MovieLikeSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ) -> MovieLikeResponseSchema:
-
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
 
     stmt = select(MovieLikesModel).where(
         MovieLikesModel.movie_id == movie_id,
@@ -523,14 +536,9 @@ async def like_movie(
 async def remove_like(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ) -> MessageResponseSchema:
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
 
     stmt = select(MovieLikesModel).where(
         MovieLikesModel.movie_id == movie_id,
@@ -565,18 +573,12 @@ async def remove_like(
     description="Rate a movie 1-10. If already rated — updates the rating.",
 )
 async def rate_movie(
-        movie_id: int,
-        rating_data: MovieRatingSchema,
-        db: AsyncSession = Depends(get_db),
-        current_user: UserModel = Depends(get_current_user)
+    movie_id: int,
+    rating_data: MovieRatingSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
-
     stmt = select(MovieRatingModel).where(
         MovieRatingModel.movie_id == movie_id,
         MovieRatingModel.user_id == current_user.id
@@ -617,15 +619,9 @@ async def rate_movie(
 async def remove_rating(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ) -> MessageResponseSchema:
-
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
 
     stmt = select(MovieRatingModel).where(
         MovieRatingModel.movie_id == movie_id,
@@ -721,14 +717,9 @@ async def get_favorite_movies(
 async def add_movie_to_favorites(
     movie_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    movie: MovieModel = Depends(get_movie_or_404)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
     stmt = select(MovieFavoriteModel).where(
         MovieFavoriteModel.user_id == current_user.id,
         MovieFavoriteModel.movie_id == movie_id
@@ -768,14 +759,9 @@ async def add_movie_to_favorites(
 async def remove_movie_from_favorites(
     movie_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    movie: MovieModel = Depends(get_movie_or_404)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
     stmt = select(MovieFavoriteModel).where(
         MovieFavoriteModel.user_id == current_user.id,
         MovieFavoriteModel.movie_id == movie_id
@@ -810,14 +796,9 @@ async def remove_movie_from_favorites(
 )
 async def get_comments_by_movie(
     movie_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    movie: MovieModel = Depends(get_movie_or_404)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
     stmt = select(CommentModel).where(
         CommentModel.movie_id == movie_id
     ).order_by(CommentModel.created_at.asc())
@@ -838,14 +819,9 @@ async def create_comment(
     movie_id: int,
     comment_data: CommentCreateSchema,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
     if comment_data.parent_id:
         parent = await db.get(CommentModel, comment_data.parent_id)
         if not parent:
@@ -884,14 +860,9 @@ async def edit_comment(
     comment_id: int,
     comment_data: CommentUpdateSchema,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
+    movie: MovieModel = Depends(get_movie_or_404)
 ) -> CommentResponseSchema:
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
 
     stmt = select(CommentModel).where(
         CommentModel.id == comment_id,
@@ -929,16 +900,10 @@ async def edit_comment(
 async def delete_comment(
     movie_id: int,
     comment_id: int,
+    movie: MovieModel = Depends(get_movie_or_404),
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    movie = await db.get(MovieModel, movie_id)
-    if not movie:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found."
-        )
-
     stmt = select(CommentModel).where(
         CommentModel.id == comment_id,
         CommentModel.movie_id == movie_id,
@@ -1019,7 +984,6 @@ async def like_comment(
     description="Remove your like from a comment."
 )
 async def remove_like_from_comment(
-    movie_id: int,
     comment_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
