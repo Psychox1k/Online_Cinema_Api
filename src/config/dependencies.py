@@ -1,7 +1,9 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import status, HTTPException, Depends
-from database import get_db, UserModel, UserGroupEnum
+from database import get_db, UserModel, UserGroupEnum, MovieModel
+from database.models.carts import CartModel
 from exceptions import BaseSecurityError
 from notifications import EmailSender, EmailSenderInterface
 from config.settings import Settings, settings
@@ -67,9 +69,9 @@ def get_jwt_auth_manager(settings: Settings = Depends(get_settings)) -> JWTAuthM
     )
 
 async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        db: AsyncSession = Depends(get_db),
-        jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
 ) -> UserModel:
     try:
         payload = jwt_manager.decode_access_token(token)
@@ -102,7 +104,7 @@ async def get_current_moderator(
 
 
 async def get_current_admin(
-        current_user:UserModel = Depends(get_current_user)
+    current_user:UserModel = Depends(get_current_user)
 ) -> UserModel:
     if not current_user.has_group(UserGroupEnum.ADMIN):
         raise HTTPException(
@@ -135,3 +137,31 @@ def get_s3_storage_client(
         bucket_name=settings.S3_BUCKET_NAME
     )
 
+async def get_movie_or_404(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> MovieModel:
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movie not found."
+        )
+    return movie
+
+
+async def get_or_create_user_cart(
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(CartModel).where(CartModel.user_id == current_user.id)
+    result = await db.execute(stmt)
+    cart = result.scalar_one_or_none()
+
+    if not cart:
+        cart = CartModel(user_id=current_user.id)
+        db.add(cart)
+        await db.commit()
+        await db.refresh(cart)
+
+    return cart
