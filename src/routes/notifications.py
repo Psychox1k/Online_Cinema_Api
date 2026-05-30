@@ -3,7 +3,7 @@ from fastapi.params import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.dependencies import get_current_moderator
+from config.dependencies import get_current_moderator, get_current_user
 from database import get_db, UserModel, NotificationModel
 from schemas import NotificationSchema
 
@@ -18,7 +18,7 @@ router = APIRouter()
 )
 async def get_user_notifcations(
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_moderator)
+    current_user: UserModel = Depends(get_current_user)
 ) -> NotificationSchema:
     stmt = select(NotificationModel).where(
         NotificationModel.user_id == current_user.id
