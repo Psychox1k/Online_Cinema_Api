@@ -192,6 +192,11 @@ class MovieModel(Base):
         back_populates="movie"
     )
 
+    order_items: Mapped[list["OrderItemModel"]] = relationship(
+        "OrderItemModel",
+        back_populates="movie"
+    )
+
     @classmethod
     def default_order_by(cls):
         return [cls.id.desc()]
