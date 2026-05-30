@@ -11,7 +11,7 @@ from config.dependencies import (
     get_or_create_user_cart,
     get_current_admin
 )
-from database import UserModel, get_db, MovieModel
+from database import UserModel, get_db, MovieModel, OrderModel, OrderItemModel, OrderStatusEnum
 from database.models.carts import CartModel, CartItemModel
 from schemas import CartSchema, MessageResponseSchema
 
@@ -75,6 +75,21 @@ async def add_movie_to_cart(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This movie is already in your cart."
         )
+
+    check_order_stmt = select(OrderModel).join(OrderItemModel).where(
+        OrderModel.user_id == current_user.id,
+        OrderItemModel.movie_id == movie_id,
+        OrderModel.status.in_([OrderStatusEnum.PAID, OrderStatusEnum.PENDING])
+    )
+    order_result = await db.execute(check_order_stmt)
+    already_ordered = order_result.scalars().first()
+
+    if already_ordered:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already purchased this movie or have a pending order for it."
+        )
+
 
     try:
         new_item = CartItemModel(
@@ -175,7 +190,7 @@ async def empty_own_cart(
 
 
 @router.get(
-    "/{user_id}/",
+    "/user/{user_id}/",
     response_model=CartSchema,
     status_code=status.HTTP_200_OK,
     summary="Get user's cart by ID (Admin)",
