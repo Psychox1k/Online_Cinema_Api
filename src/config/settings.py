@@ -1,5 +1,7 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     POSTGRES_USER: str
@@ -17,6 +19,7 @@ class Settings(BaseSettings):
     EMAIL_PORT: int
     EMAIL_HOST_USER: str
     EMAIL_HOST_PASSWORD: str
+    EMAIL_USE_TLS: bool
 
     S3_STORAGE_HOST: str
     S3_STORAGE_PORT: int
@@ -27,6 +30,10 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
 
+
+    @property
+    def REDIS_URL(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
 
     @property
