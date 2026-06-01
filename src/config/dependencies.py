@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import status, HTTPException, Depends
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from database import get_db, UserModel, UserGroupEnum, MovieModel
 from database.models.carts import CartModel
@@ -13,7 +13,7 @@ from security.jwt_interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
 from storages import S3StorageInterface, S3StorageClient
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/accounts/login/")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/cinema/accounts/login/")
 
 def get_settings() -> Settings:
     return settings
@@ -149,7 +149,18 @@ async def get_movie_or_404(
     movie_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> MovieModel:
-    movie = await db.get(MovieModel, movie_id)
+    stmt = (
+        select(MovieModel)
+        .where(MovieModel.id == movie_id)
+        .options(
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.certification),
+            selectinload(MovieModel.directors),
+            selectinload(MovieModel.stars)
+        )
+    )
+    result = await db.execute(stmt)
+    movie = result.scalar_one_or_none()
     if not movie:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

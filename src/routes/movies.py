@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy import select, func, or_, delete
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from config.dependencies import (
     get_current_moderator,
@@ -49,25 +50,25 @@ router = APIRouter()
 
 async def get_movie_stats(movie_id: int, db:AsyncSession) -> dict:
     likes_count = await db.scalar(
-        select(func.count(MovieLikesModel)).where(
+        select(func.count(MovieLikesModel.id)).where(
             MovieLikesModel.movie_id == movie_id,
             MovieLikesModel.is_like == True
         )
     )
     dislikes_count = await db.scalar(
-        select(func.count(MovieLikesModel)).where(
+        select(func.count(MovieLikesModel.id)).where(
             MovieLikesModel.movie_id == movie_id,
             MovieLikesModel.is_like == False
         )
     )
 
     comments_count = await db.scalar(
-        select(func.count(CommentModel)).where(
+        select(func.count(CommentModel.id)).where(
             CommentModel.movie_id == movie_id
         )
     )
     favorites_count = await db.scalar(
-        select(func.count(MovieFavoriteModel)).where(
+        select(func.count(MovieFavoriteModel.id)).where(
             MovieFavoriteModel.movie_id == movie_id
         )
     )
@@ -165,7 +166,12 @@ async def get_all_movies(
     stmt = apply_movie_sorting(stmt, sort_by, sort_order)
 
     offset = (page - 1) * per_page
-    stmt = stmt.offset(offset).limit(per_page)
+    stmt = stmt.offset(offset).limit(per_page).options(
+        selectinload(MovieModel.genres),
+        selectinload(MovieModel.certification),
+        selectinload(MovieModel.directors),
+        selectinload(MovieModel.stars)
+    )
 
     result = await db.execute(stmt)
     db_movies = result.scalars().all()
@@ -694,7 +700,12 @@ async def get_favorite_movies(
     stmt = apply_movie_sorting(stmt, sort_by, sort_order)
 
     offset = (page - 1) * per_page
-    stmt = stmt.offset(offset).limit(per_page)
+    stmt = stmt.offset(offset).limit(per_page).options(
+        selectinload(MovieModel.genres),
+        selectinload(MovieModel.certification),
+        selectinload(MovieModel.stars),
+        selectinload(MovieModel.directors)
+    )
 
     result = await db.execute(stmt)
     db_movies = result.scalars().all()

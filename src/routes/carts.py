@@ -34,7 +34,9 @@ async def get_own_cart(
 ) -> CartSchema:
     stmt = select(CartItemModel).where(
         CartItemModel.cart_id == cart.id
-    ).options(selectinload(CartItemModel.movie))
+    ).options(
+            selectinload(CartItemModel.movie).selectinload(MovieModel.genres)
+        )
 
     result = await db.execute(stmt)
     items = result.scalars().all()
@@ -101,7 +103,7 @@ async def add_movie_to_cart(
 
         items_stmt = select(CartItemModel).where(
             CartItemModel.cart_id == cart.id
-        ).options(selectinload(CartItemModel.movie))
+        ).options(selectinload(CartItemModel.movie).selectinload(MovieModel.genres))
         items_result = await db.execute(items_stmt)
         items = items_result.scalars().all()
 
@@ -220,7 +222,9 @@ async def get_user_cart_by_id(
 
     stmt = select(CartItemModel).where(
         CartItemModel.cart_id == user_cart.id
-    ).options(selectinload(CartItemModel.movie))
+    ).options(
+            selectinload(CartItemModel.movie).selectinload(MovieModel.genres)
+        )
     result = await db.execute(stmt)
     items = result.scalars().all()
 
