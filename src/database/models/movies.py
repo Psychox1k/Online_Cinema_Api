@@ -310,6 +310,10 @@ class CommentLikeModel(Base):
         ForeignKey("comments.id", ondelete="CASCADE"),
         nullable=False
     )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False
+    )
     user: Mapped["UserModel"] = relationship(
         "UserModel",
         back_populates="comment_likes"

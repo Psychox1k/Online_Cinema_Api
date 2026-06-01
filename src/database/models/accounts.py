@@ -137,7 +137,7 @@ class UserModel(Base):
         back_populates="user"
     )
 
-    carts: Mapped[list["CartModel"]] = relationship(
+    cart: Mapped[list["CartModel"]] = relationship(
         "CartModel",
         back_populates="user",
         cascade="all, delete-orphan"
@@ -255,7 +255,7 @@ class PasswordResetTokenModel(TokenBaseModel):
 class RefreshTokenModel(TokenBaseModel):
     __tablename__ = "refresh_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_token")
+    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_tokens")
     token: Mapped[str] = mapped_column(
         String(512),
         unique=True,
