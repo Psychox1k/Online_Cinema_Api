@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 from uuid import UUID
 from decimal import Decimal
 from typing import Optional, Any, Self
@@ -12,7 +12,8 @@ from validation import validate_imdb, validate_year, validate_price
 class CertificationSchema(BaseModel):
     id: int
     name: str
-    model_config = {"from_attributes": True}
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== GENRE =====
 class GenreBaseSchema(BaseModel):
@@ -26,14 +27,12 @@ class GenreUpdateSchema(BaseModel):
 
 class GenreResponseSchema(GenreBaseSchema):
     id: int
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 class GenreWithMovieCountSchema(BaseModel):
     id: int
     name: str
     movie_count: int
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== STAR =====
 class StarBaseSchema(BaseModel):
@@ -47,8 +46,7 @@ class StarUpdateSchema(BaseModel):
 
 class StarResponseSchema(StarBaseSchema):
     id: int
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== DIRECTOR =====
 class DirectorBaseSchema(BaseModel):
@@ -62,7 +60,7 @@ class DirectorUpdateSchema(BaseModel):
 
 class DirectorResponseSchema(DirectorBaseSchema):
     id: int
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== MOVIE =====
 class MovieBaseSchema(BaseModel):
@@ -138,8 +136,8 @@ class MovieListSchema(BaseModel):
     price: Decimal
     genres: list[GenreResponseSchema] = []
     certification: Optional[CertificationSchema] = None
-    model_config = {"from_attributes": True}
 
+    model_config = ConfigDict(from_attributes=True)
 
 class MovieDetailSchema(BaseModel):
     id: int
@@ -163,8 +161,7 @@ class MovieDetailSchema(BaseModel):
     favorites_count: int = 0
     average_rating: Optional[float] = None
 
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== LIKES =====
 class MovieLikeSchema(BaseModel):
@@ -191,8 +188,7 @@ class MovieRatingResponseSchema(BaseModel):
 class FavoriteResponseSchema(BaseModel):
     id: int
     movie: MovieListSchema
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 
 # ===== COMMENTS =====
 class CommentCreateSchema(BaseModel):
@@ -210,8 +206,8 @@ class CommentResponseSchema(BaseModel):
     parent_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
-    model_config = {"from_attributes": True}
 
+    model_config = ConfigDict(from_attributes=True)
 # ===== COMMENTS =====
 
 class PaginatedMoviesSchema(BaseModel):

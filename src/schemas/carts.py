@@ -1,23 +1,29 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from schemas import GenreResponseSchema
 
 
-class CartItemSchema(BaseModel):
+class CartMovieSchema(BaseModel):
     id: int
-    movie_id: int
-    movie_name: str
+    name: str
     price: Decimal
     year: int
     genres: list[GenreResponseSchema] = []
+
+    model_config = ConfigDict(from_attributes=True)
+class CartItemSchema(BaseModel):
+    id: int
+    movie_id: int
     added_at: datetime
-    model_config = {"from_attributes": True}
+    movie: CartMovieSchema
+    model_config = ConfigDict(from_attributes=True)
 
 class CartSchema(BaseModel):
     id: int
     items: list[CartItemSchema]
     total_price: Decimal = 0
-    model_config = {"from_attributes": True}
+
+    model_config = ConfigDict(from_attributes=True)
