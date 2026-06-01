@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     EMAIL_HOST_PASSWORD: str
     EMAIL_USE_TLS: bool
 
+    PATH_TO_EMAIL_TEMPLATES_DIR: str = str(BASE_DIR / "notifications" / "templates")
+    ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation_request.html"
+    ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME: str = "activation_complete.html"
+    PASSWORD_RESET_TEMPLATE_NAME: str = "password_reset_request.html"
+    PASSWORD_RESET_COMPLETE_TEMPLATE_NAME: str = "password_reset_complete.html"
+
     S3_STORAGE_HOST: str
     S3_STORAGE_PORT: int
     S3_STORAGE_ACCESS_KEY: str
