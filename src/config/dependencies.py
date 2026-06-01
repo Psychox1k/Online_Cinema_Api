@@ -2,6 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import status, HTTPException, Depends
+from sqlalchemy.orm import joinedload
+
 from database import get_db, UserModel, UserGroupEnum, MovieModel
 from database.models.carts import CartModel
 from exceptions import BaseSecurityError
@@ -81,7 +83,13 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token."
         )
-    user = await db.get(UserModel, user_id)
+
+    stmt = select(UserModel).options(
+        joinedload(UserModel.group)
+    ).where(UserModel.id == user_id)
+
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(
