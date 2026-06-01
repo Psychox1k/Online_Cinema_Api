@@ -113,8 +113,13 @@ async def register_user(
             group_id=user_group.id,
         )
         db.add(new_user)
+        await db.flush()
+
+        activation_token = ActivationTokenModel(user_id=new_user.id)
+        db.add(activation_token)
         await db.commit()
         await db.refresh(new_user)
+        await db.refresh(activation_token)
 
 
     except SQLAlchemyError as e:
@@ -124,7 +129,7 @@ async def register_user(
             detail="An error occurred during user creation"
         )
     else:
-        activation_link = "http://127.0.0.1/accounts/activate/"
+        activation_link = f"http://localhost:8000/api/v1/cinema/accounts/activate/?token={activation_token.token}&email={new_user.email}"
         await email_sender.send_activation_email(
             new_user.email,
             activation_link
@@ -244,8 +249,12 @@ async def request_password_reset(
             PasswordResetTokenModel.user_id == user.id
         )
     )
+    reset_token = PasswordResetTokenModel(user_id=user.id)
+    db.add(reset_token)
+    await db.commit()
+    await db.refresh(reset_token)
 
-    password_reset_link = "http://127.0.0.1/accounts/password-reset-complete/"
+    password_reset_link = f"http://localhost:8000/api/v1/cinema/accounts/password-reset-complete/?token={reset_token.token}&email={user.email}"
 
     await email_sender.send_password_reset_email(
         str(data.email),
@@ -415,6 +424,13 @@ async def login_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is not activated."
         )
+
+    await db.execute(
+        delete(RefreshTokenModel).where(
+            RefreshTokenModel.user_id == user.id
+        )
+    )
+
     jwt_refresh_token = jwt_manager.create_refresh_token({"user_id": user.id})
     try:
         refresh_token = RefreshTokenModel.create(
