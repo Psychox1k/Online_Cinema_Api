@@ -55,8 +55,39 @@ async def get_own_cart(
     response_model=CartSchema,
     status_code=status.HTTP_201_CREATED,
     summary="Add movie to cart",
-    description="Adds a specific movie to the user's shopping cart."
-                " Validates that the movie isn't already in the cart."
+    description="Adds a specific movie to the user's shopping cart. Validates that the movie isn't already in the cart or purchased.",
+    responses={
+        400: {
+            "description": "Bad Request - Movie is already in the cart, purchased, or pending.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "This movie is already in your cart."
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie doesn't exist.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while adding the movie to your cart."
+                    }
+                }
+            }
+        }
+    }
 )
 async def add_movie_to_cart(
         movie_id: int,

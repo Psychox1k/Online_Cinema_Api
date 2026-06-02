@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_moderator, get_current_admin
 from database import get_db, GenreModel, UserModel, MoviesGenresModel
-from schemas import MessageResponseSchema, GenreWithMovieCountSchema
-from schemas.movies import GenreCreateSchema, GenreUpdateSchema, GenreResponseSchema
+from schemas import MessageResponseSchema
+from schemas.movies import GenreCreateSchema, GenreUpdateSchema, GenreResponseSchema, GenreWithMovieCountSchema
 
 router = APIRouter()
 
@@ -15,35 +15,52 @@ router = APIRouter()
     response_model=list[GenreWithMovieCountSchema],
     status_code=status.HTTP_200_OK,
     summary="Get all genres",
-    description="Retrieve a list of all genres.",
+    description="Retrieve a list of all genres along with the count of movies"
+                " in each genre.",
+    responses={
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Database error."
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_all_genres(
         db: AsyncSession = Depends(get_db)
-) -> list[GenreResponseSchema]:
-
-    movie_count_subquery = (
-        select(func.count(MoviesGenresModel.c.movie_id)).where(
-            MoviesGenresModel.c.genre_id == GenreModel.id
-        ).scalar_subquery()
-    )
-
-    stmt = select(
-        GenreModel,
-        movie_count_subquery.label("movie_count")
-    )
-
-    result = await db.execute(stmt)
-
-    rows = result.all()
-
-    return [
-        GenreWithMovieCountSchema(
-            id=row.GenreModel.id,
-            name=row.GenreModel.name,
-            movie_count=row.movie_count
+) -> list[GenreWithMovieCountSchema]: # <-- Исправил Type Hint здесь
+    try:
+        movie_count_subquery = (
+            select(func.count(MoviesGenresModel.c.movie_id)).where(
+                MoviesGenresModel.c.genre_id == GenreModel.id
+            ).scalar_subquery()
         )
-        for row in rows
-    ]
+
+        stmt = select(
+            GenreModel,
+            movie_count_subquery.label("movie_count")
+        )
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        return [
+            GenreWithMovieCountSchema(
+                id=row.GenreModel.id,
+                name=row.GenreModel.name,
+                movie_count=row.movie_count
+            )
+            for row in rows
+        ]
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching genres."
+        )
 
 @router.get(
     "/{genre_id}/",
@@ -53,8 +70,24 @@ async def get_all_genres(
     description="Retrieve a specific genre by ID.",
     responses={
         404: {
-            "description": "Not Found - genre not found.",
-            "content": {"application/json": {"example": {"detail": "genre not found."}}}
+            "description": "Not Found - Genre not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Genre not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Database error."
+                    }
+                }
+            }
         }
     }
 )
@@ -62,16 +95,22 @@ async def get_genre_by_id(
         genre_id: int,
         db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(GenreModel).where(GenreModel.id == genre_id)
-    result = await db.execute(stmt)
-    genre = result.scalar_one_or_none()
+    try:
+        stmt = select(GenreModel).where(GenreModel.id == genre_id)
+        result = await db.execute(stmt)
+        genre = result.scalar_one_or_none()
 
-    if not genre:
+        if not genre:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Genre not found."
+            )
+        return genre
+    except SQLAlchemyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Genre not found."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching genre."
         )
-    return genre
 
 
 @router.post(
@@ -81,14 +120,46 @@ async def get_genre_by_id(
     summary="Create genre",
     description="Create a new genre. Only moderators and admins can perform this action.",
     responses={
-        409: {
-            "description": "Conflict - genre with this name already exists.",
-            "content": {"application/json": {"example": {"detail": "genre already exists."}}}
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
         },
         403: {
-            "description": "Forbidden.",
-            "content": {"application/json": {"example": {"detail": "Only moderators can perform this action."}}}
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
         },
+        409: {
+            "description": "Conflict - Genre with this name already exists.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Genre already exists."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while creating genre."
+                    }
+                }
+            }
+        }
     }
 )
 async def create_genre(
@@ -123,16 +194,59 @@ async def create_genre(
     response_model=GenreResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Update genre",
-    description="Update a genre. Only moderators and admins can perform this action.",
+    description="Update a genre. Only moderators and admins can perform this"
+                " action.",
     responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
+        },
         404: {
-            "description": "Not Found.",
-            "content": {"application/json": {"example": {"detail": "genre not found."}}}
+            "description": "Not Found - Genre not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Genre not found."
+                    }
+                }
+            }
         },
         409: {
-            "description": "Conflict - genre with this name already exists.",
-            "content": {"application/json": {"example": {"detail": "genre already exists."}}}
+            "description": "Conflict - Genre with this name already exists.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Genre with this name already exists."
+                    }
+                }
+            }
         },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while updating genre."
+                    }
+                }
+            }
+        }
     }
 )
 async def update_genre(
@@ -140,7 +254,6 @@ async def update_genre(
     genre_data: GenreUpdateSchema,
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_moderator)
-
 ):
     stmt = select(GenreModel).where(GenreModel.id == genre_id)
     result = await db.execute(stmt)
@@ -175,12 +288,48 @@ async def update_genre(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete genre",
-    description="Delete a genre. Only moderators and admins can perform this action.",
+    description="Delete a genre. Only admins can perform this action.",
     responses={
-        404: {
-            "description": "Not Found.",
-            "content": {"application/json": {"example": {"detail": "genre not found."}}}
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
         },
+        403: {
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only admins can perform this action."
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Genre not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Genre not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while deleting genre."
+                    }
+                }
+            }
+        }
     }
 )
 async def delete_genre(

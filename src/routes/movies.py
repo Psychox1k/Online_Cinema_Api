@@ -136,9 +136,19 @@ def apply_movie_sorting(stmt, sort_by, sort_order):
     response_model=PaginatedMoviesSchema,
     status_code=status.HTTP_200_OK,
     summary="Get movie catalog",
-    description="Browse movies with pagination, filtering by year, IMDb rating, price, genre and sorting.",
+    description="Browse movies with pagination, filtering by year,"
+                " IMDb rating, price, genre and sorting.",
     responses={
-        200: {"description": "Successfully retrieved movie list."},
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching movies."
+                    }
+                }
+            }
+        }
     }
 )
 async def get_all_movies(
@@ -155,34 +165,39 @@ async def get_all_movies(
         sort_by: Optional[str] = Query(default="id", enum=["id", "price", "imdb", "year"]),
         sort_order: Optional[str] = Query(default="asc", enum=["asc", "desc"]),
 ) -> PaginatedMoviesSchema:
+    try:
+        stmt = select(MovieModel)
 
-    stmt = select(MovieModel)
+        stmt = apply_movie_filters(stmt, search, year, min_imdb, max_imdb, min_price, max_price, genre)
 
-    stmt = apply_movie_filters(stmt, search, year, min_imdb, max_imdb, min_price, max_price, genre)
+        total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
+        total_pages = math.ceil(total / per_page)
 
-    total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
-    total_pages = math.ceil(total / per_page)
+        stmt = apply_movie_sorting(stmt, sort_by, sort_order)
 
-    stmt = apply_movie_sorting(stmt, sort_by, sort_order)
+        offset = (page - 1) * per_page
+        stmt = stmt.offset(offset).limit(per_page).options(
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.certification),
+            selectinload(MovieModel.directors),
+            selectinload(MovieModel.stars)
+        )
 
-    offset = (page - 1) * per_page
-    stmt = stmt.offset(offset).limit(per_page).options(
-        selectinload(MovieModel.genres),
-        selectinload(MovieModel.certification),
-        selectinload(MovieModel.directors),
-        selectinload(MovieModel.stars)
-    )
+        result = await db.execute(stmt)
+        db_movies = result.scalars().all()
 
-    result = await db.execute(stmt)
-    db_movies = result.scalars().all()
-
-    return PaginatedMoviesSchema(
-        items=db_movies,
-        total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages
-    )
+        return PaginatedMoviesSchema(
+            items=db_movies,
+            total=total,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching movies."
+        )
 
 
 @router.post(
@@ -190,19 +205,48 @@ async def get_all_movies(
     response_model=MovieDetailSchema,
     status_code=status.HTTP_201_CREATED,
     summary="Create movie",
-    description="Create a new movie. Only moderators and admins can perform this action.",
+    description="Create a new movie. Only moderators and admins can perform"
+                " this action.",
     responses={
         400: {
-            "description": "Bad Request - Movie with this name, year and duration already exists.",
-            "content": {"application/json": {"example": {"detail": "Movie already exists."}}}
+            "description": "Bad Request - Invalid input or movie already exists.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie existed"
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
         },
         403: {
             "description": "Forbidden - Only moderators can perform this action.",
-            "content": {"application/json": {"example": {"detail": "Only moderators can perform this action."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
         },
         500: {
             "description": "Internal Server Error.",
-            "content": {"application/json": {"example": {"detail": "Database error."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Database error."
+                    }
+                }
+            }
         },
     }
 )
@@ -211,22 +255,20 @@ async def create_movie(
     current_user: UserModel = Depends(get_current_moderator),
     db: AsyncSession = Depends(get_db),
 ) -> MovieDetailSchema:
-
-    stmt = select(MovieModel).where(
-        MovieModel.name == movie_data.name,
-        MovieModel.time == movie_data.time,
-        MovieModel.year == movie_data.year
-    )
-    result = await db.execute(stmt)
-    existing_movie = result.scalar_one_or_none()
-
-    if existing_movie:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Movie existed"
-        )
-
     try:
+        stmt = select(MovieModel).where(
+            MovieModel.name == movie_data.name,
+            MovieModel.time == movie_data.time,
+            MovieModel.year == movie_data.year
+        )
+        result = await db.execute(stmt)
+        existing_movie = result.scalar_one_or_none()
+
+        if existing_movie:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Movie existed"
+            )
 
         genres = []
         for genre_name in movie_data.genres:
@@ -303,8 +345,24 @@ async def create_movie(
     responses={
         404: {
             "description": "Not Found - Movie with this ID does not exist.",
-            "content": {"application/json": {"example": {"detail": "Movie not found."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
         },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching the movie."
+                    }
+                }
+            }
+        }
     }
 )
 async def get_movie_by_id(
@@ -312,26 +370,32 @@ async def get_movie_by_id(
     db: AsyncSession = Depends(get_db),
     db_movie: MovieModel = Depends(get_movie_or_404)
 ) -> MovieDetailSchema:
-    stats = await get_movie_stats(movie_id, db)
+    try:
+        stats = await get_movie_stats(movie_id, db)
 
-    return MovieDetailSchema(
-        id=db_movie.id,
-        uuid=db_movie.uuid,
-        name=db_movie.name,
-        year=db_movie.year,
-        time=db_movie.time,
-        imdb=db_movie.imdb,
-        votes=db_movie.votes,
-        meta_score=db_movie.meta_score,
-        gross=db_movie.gross,
-        description=db_movie.description,
-        price=db_movie.price,
-        certification=db_movie.certification,
-        genres=db_movie.genres,
-        directors=db_movie.directors,
-        stars=db_movie.stars,
-        **stats
-    )
+        return MovieDetailSchema(
+            id=db_movie.id,
+            uuid=db_movie.uuid,
+            name=db_movie.name,
+            year=db_movie.year,
+            time=db_movie.time,
+            imdb=db_movie.imdb,
+            votes=db_movie.votes,
+            meta_score=db_movie.meta_score,
+            gross=db_movie.gross,
+            description=db_movie.description,
+            price=db_movie.price,
+            certification=db_movie.certification,
+            genres=db_movie.genres,
+            directors=db_movie.directors,
+            stars=db_movie.stars,
+            **stats
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching the movie."
+        )
 
 @router.patch(
     "/{movie_id}/",
@@ -342,15 +406,33 @@ async def get_movie_by_id(
     responses={
         404: {
             "description": "Not Found - Movie with this ID does not exist.",
-            "content": {"application/json": {"example": {"detail": "Movie not found."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
         },
         403: {
             "description": "Forbidden - Only moderators can perform this action.",
-            "content": {"application/json": {"example": {"detail": "Only moderators can perform this action."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
         },
         500: {
             "description": "Internal Server Error.",
-            "content": {"application/json": {"example": {"detail": "An error occurred while updating movie."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while updating movie."
+                    }
+                }
+            }
         },
     }
 )
@@ -432,19 +514,38 @@ async def movie_update(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete movie",
-    description="Delete a movie. Only admins can perform this action. Notifies moderators if the movie was in any user's cart.",
+    description="Delete a movie. Only admins can perform this action."
+                " Notifies moderators if the movie was in any user's cart.",
     responses={
         404: {
             "description": "Not Found - Movie with this ID does not exist.",
-            "content": {"application/json": {"example": {"detail": "Movie not found."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
         },
         403: {
             "description": "Forbidden - Only admins can perform this action.",
-            "content": {"application/json": {"example": {"detail": "Only admins can perform this action."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only admins can perform this action."
+                    }
+                }
+            }
         },
         500: {
             "description": "Internal Server Error.",
-            "content": {"application/json": {"example": {"detail": "An error occurred while deleting movie."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while deleting movie."
+                    }
+                }
+            }
         },
     }
 )
@@ -491,6 +592,28 @@ async def movie_delete(
     status_code=status.HTTP_200_OK,
     summary="Like or dislike a movie",
     description="Like or dislike a movie. If already liked/disliked — updates the vote.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {"application/json": {"example": {"detail": "Not authenticated"}}}
+        },
+        404: {
+            "description": "Not Found - Movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Movie not found."}}}
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while processing your request."
+                    }
+                }
+            }
+        }
+    }
 )
 async def like_movie(
     movie_id: int,
@@ -537,7 +660,36 @@ async def like_movie(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Remove like",
-    description="Remove your like or dislike from a movie."
+    description="Remove your like or dislike from a movie.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"}}}
+        },
+        404: {
+            "description": "Not Found - Like or movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "You have not liked or disliked this movie."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while removing like."
+                    }
+                }
+            }
+        }
+    }
 )
 async def remove_like(
     movie_id: int,
@@ -570,6 +722,8 @@ async def remove_like(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while removing like."
         )
+
+
 # # ===== RATE =====
 @router.post(
     "/{movie_id}/rate/",
@@ -577,6 +731,38 @@ async def remove_like(
     status_code=status.HTTP_200_OK,
     summary="Rate a movie",
     description="Rate a movie 1-10. If already rated — updates the rating.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while rating movie."
+                    }
+                }
+            }
+        }
+    }
 )
 async def rate_movie(
     movie_id: int,
@@ -585,14 +771,15 @@ async def rate_movie(
     current_user: UserModel = Depends(get_current_user),
     movie: MovieModel = Depends(get_movie_or_404)
 ):
-    stmt = select(MovieRatingModel).where(
-        MovieRatingModel.movie_id == movie_id,
-        MovieRatingModel.user_id == current_user.id
-    )
-    result = await db.execute(stmt)
-    existing_rating = result.scalar_one_or_none()
-
     try:
+        stmt = select(MovieRatingModel).where(
+            MovieRatingModel.movie_id == movie_id,
+            MovieRatingModel.user_id == current_user.id
+        )
+        result = await db.execute(stmt)
+        existing_rating = result.scalar_one_or_none()
+
+
         if existing_rating:
             existing_rating.rating = rating_data.rating
             message = f"Rating updated to {rating_data.rating}."
@@ -621,6 +808,38 @@ async def rate_movie(
     status_code=status.HTTP_200_OK,
     summary="Remove rating",
     description="Remove your rating from a movie.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Rating or movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Rating not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while removing rating."
+                    }
+                }
+            }
+        }
+    }
 )
 async def remove_rating(
     movie_id: int,
@@ -653,13 +872,36 @@ async def remove_rating(
             detail="An error occurred while removing rating."
         )
 
-# # ===== FAVORITES =====
+# ===== FAVORITES =====
 @router.get(
     "/favorites/",
     response_model=PaginatedMoviesSchema,
     status_code=status.HTTP_200_OK,
     summary="Get favorite movies",
-    description="Get current user's favorite movies with filtering and pagination."
+    description="Get current user's favorite movies with filtering and"
+                " pagination.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching favorites."
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_favorite_movies(
     page: int = Query(default=1, ge=1),
@@ -676,54 +918,78 @@ async def get_favorite_movies(
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> PaginatedMoviesSchema:
-    stmt = select(MovieModel).join(
-        MovieFavoriteModel,
-        MovieFavoriteModel.movie_id == MovieModel.id
-    ).where(
-        MovieFavoriteModel.user_id == current_user.id
-    )
+    try:
+        stmt = select(MovieModel).join(
+            MovieFavoriteModel,
+            MovieFavoriteModel.movie_id == MovieModel.id
+        ).where(
+            MovieFavoriteModel.user_id == current_user.id
+        )
 
-    stmt = apply_movie_filters(
-        stmt,
-        search,
-        year,
-        min_imdb,
-        max_imdb,
-        min_price,
-        max_price,
-        genre
-    )
+        stmt = apply_movie_filters(
+            stmt,
+            search,
+            year,
+            min_imdb,
+            max_imdb,
+            min_price,
+            max_price,
+            genre
+        )
 
-    total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
-    total_pages = math.ceil(total / per_page)
+        total = await db.scalar(select(func.count()).select_from(stmt.subquery()))
+        total_pages = math.ceil(total / per_page)
 
-    stmt = apply_movie_sorting(stmt, sort_by, sort_order)
+        stmt = apply_movie_sorting(stmt, sort_by, sort_order)
 
-    offset = (page - 1) * per_page
-    stmt = stmt.offset(offset).limit(per_page).options(
-        selectinload(MovieModel.genres),
-        selectinload(MovieModel.certification),
-        selectinload(MovieModel.stars),
-        selectinload(MovieModel.directors)
-    )
+        offset = (page - 1) * per_page
+        stmt = stmt.offset(offset).limit(per_page).options(
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.certification),
+            selectinload(MovieModel.stars),
+            selectinload(MovieModel.directors)
+        )
 
-    result = await db.execute(stmt)
-    db_movies = result.scalars().all()
+        result = await db.execute(stmt)
+        db_movies = result.scalars().all()
 
-    return PaginatedMoviesSchema(
-        items=db_movies,
-        total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages
-    )
+        return PaginatedMoviesSchema(
+            items=db_movies,
+            total=total,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching favorites."
+        )
 
 @router.post(
     "/{movie_id}/favorites/",
     response_model=MessageResponseSchema,
     status_code=status.HTTP_201_CREATED,
     summary="Add movie to favorites",
-    description="Add a movie to your favorites list."
+    description="Add a movie to your favorites list.",
+    responses={
+        400: {
+            "description": "Bad Request - Movie already in favorites.",
+            "content": {"application/json": {"example": {"detail": "Movie has already in your favorites."}}}
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {"application/json": {"example": {"detail": "Not authenticated"}}}
+        },
+        404: {
+            "description": "Not Found - Movie not found.",
+            "content": {"application/json": {"example": {"detail": "Movie not found."}}}
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {"application/json": {"example": {"detail": "An error occurred while adding movie to favorites."}}}
+        }
+    }
 )
 async def add_movie_to_favorites(
     movie_id: int,
@@ -750,7 +1016,9 @@ async def add_movie_to_favorites(
         )
         db.add(favorite)
         await db.commit()
-        return MessageResponseSchema(message="Movie added to favorites successfully.")
+        return MessageResponseSchema(
+            message="Movie added to favorites successfully."
+        )
 
     except SQLAlchemyError:
         await db.rollback()
@@ -765,7 +1033,50 @@ async def add_movie_to_favorites(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Remove movie from favorites",
-    description="Remove a movie from your favorites list."
+    description="Remove a movie from your favorites list.",
+    responses={
+        400: {
+            "description": "Bad Request - Movie not in favorites.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie hasn't found in your favorites."
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while removing movie "
+                                  "from favorites."
+                    }
+                }
+            }
+        }
+    }
 )
 async def remove_movie_from_favorites(
     movie_id: int,
@@ -788,7 +1099,9 @@ async def remove_movie_from_favorites(
     try:
         await db.delete(db_favorite)
         await db.commit()
-        return MessageResponseSchema(message="Movie removed from favorites successfully.")
+        return MessageResponseSchema(
+            message="Movie removed from favorites successfully."
+        )
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -803,20 +1116,48 @@ async def remove_movie_from_favorites(
     response_model=list[CommentResponseSchema],
     status_code=status.HTTP_200_OK,
     summary="Get movie comments",
-    description="Get all comments for a specific movie."
+    description="Get all comments for a specific movie.",
+    responses={
+        404: {
+            "description": "Not Found - Movie not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Movie not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching comments."
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_comments_by_movie(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
     movie: MovieModel = Depends(get_movie_or_404)
 ):
-    stmt = select(CommentModel).where(
-        CommentModel.movie_id == movie_id
-    ).order_by(CommentModel.created_at.asc())
+    try:
+        stmt = select(CommentModel).where(
+            CommentModel.movie_id == movie_id
+        ).order_by(CommentModel.created_at.asc())
 
-    result = await db.execute(stmt)
-    comments = result.scalars().all()
-    return comments
+        result = await db.execute(stmt)
+        comments = result.scalars().all()
+        return comments
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching comments."
+        )
 
 
 @router.post(
@@ -824,7 +1165,39 @@ async def get_comments_by_movie(
     response_model=CommentResponseSchema,
     status_code=status.HTTP_201_CREATED,
     summary="Create comment",
-    description="Write a comment on a movie."
+    description="Write a comment on a movie.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie or parent comment not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Parent comment not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while creating comment."
+                    }
+                }
+            }
+        }
+    }
 )
 async def create_comment(
     movie_id: int,
@@ -864,7 +1237,39 @@ async def create_comment(
     response_model=CommentResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Update comment",
-    description="Update your comment."
+    description="Update your comment.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie or comment not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Comment not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while updating comment."
+                    }
+                }
+            }
+        }
+    }
 )
 async def edit_comment(
     movie_id: int,
@@ -906,7 +1311,39 @@ async def edit_comment(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete comment",
-    description="Delete your comment."
+    description="Delete your comment.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Movie or comment not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Comment not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while deleting comment."
+                    }
+                }
+            }
+        }
+    }
 )
 async def delete_comment(
     movie_id: int,
@@ -944,7 +1381,49 @@ async def delete_comment(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Like a comment",
-    description="Like a comment."
+    description="Like a comment.",
+    responses={
+        400: {
+            "description": "Bad Request - Comment already liked.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "You have already liked this comment."
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Comment not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Comment not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while liking comment."
+                    }
+                }
+            }
+        }
+    }
 )
 async def like_comment(
     movie_id: int,
@@ -992,26 +1471,59 @@ async def like_comment(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Remove comment like",
-    description="Remove your like from a comment."
+    description="Remove your like from a comment.",
+    responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Like not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "You have not liked this comment."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while removing comment like."
+                    }
+                }
+            }
+        }
+    }
 )
 async def remove_like_from_comment(
     comment_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    stmt = select(CommentLikeModel).where(
-        CommentLikeModel.comment_id == comment_id,
-        CommentLikeModel.user_id == current_user.id
-    )
-    result = await db.execute(stmt)
-    existing_like = result.scalar_one_or_none()
-
-    if not existing_like:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="You have not liked this comment."
-        )
     try:
+        stmt = select(CommentLikeModel).where(
+            CommentLikeModel.comment_id == comment_id,
+            CommentLikeModel.user_id == current_user.id
+        )
+        result = await db.execute(stmt)
+        existing_like = result.scalar_one_or_none()
+
+        if not existing_like:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="You have not liked this comment."
+            )
+
         await db.delete(existing_like)
         await db.commit()
         return MessageResponseSchema(message="Comment like removed successfully.")

@@ -16,14 +16,32 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Get all directors",
     description="Retrieve a list of all directors.",
+    responses={
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Database error."
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_all_directors(
         db: AsyncSession = Depends(get_db)
 ) -> list[DirectorResponseSchema]:
-    stmt = select(DirectorModel)
-    result = await db.execute(stmt)
+    try:
+        stmt = select(DirectorModel)
+        result = await db.execute(stmt)
 
-    return result.scalars().all()
+        return result.scalars().all()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching directors."
+        )
 
 @router.get(
     "/{director_id}/",
@@ -34,7 +52,23 @@ async def get_all_directors(
     responses={
         404: {
             "description": "Not Found - Director not found.",
-            "content": {"application/json": {"example": {"detail": "director not found."}}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Director not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Database error."
+                    }
+                }
+            }
         }
     }
 )
@@ -42,17 +76,22 @@ async def get_director_by_id(
         director_id: int,
         db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(DirectorModel).where(DirectorModel.id == director_id)
-    result = await db.execute(stmt)
-    director = result.scalar_one_or_none()
+    try:
+        stmt = select(DirectorModel).where(DirectorModel.id == director_id)
+        result = await db.execute(stmt)
+        director = result.scalar_one_or_none()
+        if not director:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Director not found."
+            )
+        return director
 
-    if not director:
+    except SQLAlchemyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director not found."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching director."
         )
-    return director
-
 
 @router.post(
     "/",
@@ -61,14 +100,46 @@ async def get_director_by_id(
     summary="Create director",
     description="Create a new director. Only moderators and admins can perform this action.",
     responses={
-        409: {
-            "description": "Conflict - director with this name already exists.",
-            "content": {"application/json": {"example": {"detail": "director already exists."}}}
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
         },
         403: {
-            "description": "Forbidden.",
-            "content": {"application/json": {"example": {"detail": "Only moderators can perform this action."}}}
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
         },
+        409: {
+            "description": "Conflict - Director with this name already exists.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Director already exists."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while creating director."
+                    }
+                }
+            }
+        }
     }
 )
 async def create_director(
@@ -105,14 +176,50 @@ async def create_director(
     summary="Update director",
     description="Update a director. Only moderators and admins can perform this action.",
     responses={
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only moderators can perform this action."
+                    }
+                }
+            }
+        },
         404: {
-            "description": "Not Found.",
-            "content": {"application/json": {"example": {"detail": "director not found."}}}
+            "description": "Not Found - Director not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Director not found."
+                    }
+                }
+            }
         },
         409: {
-            "description": "Conflict - director with this name already exists.",
-            "content": {"application/json": {"example": {"detail": "director already exists."}}}
+            "description": "Conflict - Director with this name already exists.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Director with this name already exists."
+                    }
+                }
+            }
         },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {"application/json": {"example": {"detail": "An error occurred while updating director."}}}
+        }
     }
 )
 async def update_director(
@@ -155,12 +262,48 @@ async def update_director(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete director",
-    description="Delete a director. Only moderators and admins can perform this action.",
+    description="Delete a director. Only admins can perform this action.",
     responses={
-        404: {
-            "description": "Not Found.",
-            "content": {"application/json": {"example": {"detail": "director not found."}}}
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
         },
+        403: {
+            "description": "Forbidden - Insufficient permissions.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only admins can perform this action."
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Not Found - Director not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                    "detail": "Director not found."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while deleting director."
+                    }
+                }
+            }
+        }
     }
 )
 async def delete_director(

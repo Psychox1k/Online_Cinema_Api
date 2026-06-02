@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 
 from fastapi import (
@@ -39,7 +40,8 @@ router = APIRouter()
             },
         },
         401: {
-            "description": "Unauthorized - Invalid or missing authentication token.",
+            "description": "Unauthorized - Invalid or missing "
+                           "authentication token.",
             "content": {
                 "application/json": {
                     "example": {
@@ -49,20 +51,23 @@ router = APIRouter()
             },
         },
         500: {
-            "description": "Internal Server Error - An error occurred while creating the profile.",
+            "description": "Internal Server Error - An error occurred while"
+                           " creating the profile.",
             "content": {
                 "application/json": {
                     "examples": {
                         "s3_error": {
                             "summary": "S3 Upload Error",
                             "value": {
-                                "detail": "Failed to upload avatar. Please try again later."
+                                "detail": "Failed to upload avatar. Please"
+                                          " try again later."
                             }
                         },
                         "db_error": {
                             "summary": "Database Error",
                             "value": {
-                                "detail": "An error occurred while creating profile."
+                                "detail": "An error occurred while creating"
+                                          " profile."
                             }
                         }
                     }
@@ -82,14 +87,20 @@ async def create_profile(
         s3_client: S3StorageInterface = Depends(get_s3_storage_client),
         current_user: UserModel = Depends(get_current_user)
 ) -> ProfileResponseSchema:
-    stmt = select(UserProfileModel).filter_by(user_id=current_user.id)
-    result = await db.execute(stmt)
-    profile = result.scalar_one_or_none()
+    try:
+        stmt = select(UserProfileModel).filter_by(user_id=current_user.id)
+        result = await db.execute(stmt)
+        profile = result.scalar_one_or_none()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while checking existing profiles."
+        )
 
     if profile:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User has already had profile"
+            detail="User already has a profile."
         )
 
     avatar_bytes = await avatar.read()
@@ -160,6 +171,16 @@ async def create_profile(
                 }
             },
         },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching the profile."
+                    }
+                }
+            }
+        }
     },
 )
 async def get_profile_by_id(
@@ -167,8 +188,15 @@ async def get_profile_by_id(
         db: AsyncSession = Depends(get_db),
         s3_client: S3StorageInterface = Depends(get_s3_storage_client)
 ):
-    stmt = select(UserProfileModel).where(UserProfileModel.id == profile_id)
-    result = await db.execute(stmt)
+    try:
+        stmt = select(UserProfileModel).where(UserProfileModel.id == profile_id)
+        result = await db.execute(stmt)
+        db_profile = result.scalar_one_or_none()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching the profile."
+        )
 
     db_profile = result.scalar_one_or_none()
     if not db_profile:
@@ -191,25 +219,39 @@ async def get_profile_by_id(
 
 
 @router.get(
-    "",
+    "/",
     status_code=status.HTTP_200_OK,
     response_model=list[ProfileResponseSchema],
     summary="Get all profiles",
     description="Retrieve a list of all user profiles.",
     responses={
-        200: {
-            "description": "Successfully retrieved list of profiles.",
-        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while fetching profiles."
+                    }
+                }
+            }
+        }
     },
 )
 async def get_all_profiles(
     db: AsyncSession = Depends(get_db),
     s3_client: S3StorageInterface = Depends(get_s3_storage_client)
 ):
-    stmt = select(UserProfileModel)
-    result = await db.execute(stmt)
-
-    db_profiles = result.scalars().all()
+    try:
+        stmt = select(UserProfileModel)
+        result = await db.execute(stmt)
+        db_profiles = result.scalars().all()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching profiles."
+        )
+    tasks = [s3_client.get_file_url(profile.avatar) for profile in db_profiles]
+    avatar_urls = await asyncio.gather(*tasks)
 
     profiles = []
     for profile in db_profiles:

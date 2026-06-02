@@ -61,13 +61,14 @@ router = APIRouter()
             "content": {
                 "application/json": {
                     "example": {
-                        "detail": "A user with this email test@example.com already exists."
+                        "detail": "User with test@example.com already exists."
                     }
                 }
             },
         },
         500: {
-            "description": "Internal Server Error - An error occurred during user creation.",
+            "description": "Internal Server Error - An error occurred during"
+                           " user creation or default group not found.",
             "content": {
                 "application/json": {
                     "example": {
@@ -92,7 +93,7 @@ async def register_user(
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"User with {user_data.email} has already exists"
+            detail=f"User with {user_data.email} already exists."
         )
 
     stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
@@ -126,7 +127,7 @@ async def register_user(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during user creation"
+            detail="An error occurred during user creation."
         )
     else:
         activation_link = f"http://localhost:8000/api/v1/cinema/accounts/activate/?token={activation_token.token}&email={new_user.email}"
@@ -144,10 +145,10 @@ async def register_user(
     summary="Activate User Account",
     description="Activate a user's account using their email and activation token.",
     status_code=status.HTTP_200_OK,
-responses={
+    responses={
         400: {
-            "description": "Bad Request - The activation token is invalid or expired, "
-                           "or the user account is already active.",
+            "description": "Bad Request - The activation token is invalid or"
+                           " expired, or the user account is already active.",
             "content": {
                 "application/json": {
                     "examples": {
@@ -160,7 +161,7 @@ responses={
                         "already_active": {
                             "summary": "Account Already Active",
                             "value": {
-                                "detail": "User account is already active."
+                                "detail": "User account is already activated."
                             }
                         },
                     }
@@ -172,7 +173,9 @@ responses={
 async def activate_account(
         activation_data: UserActivationRequestSchema,
         db: AsyncSession = Depends(get_db),
-        email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator)
+        email_sender: EmailSenderInterface = Depends(
+            get_accounts_email_notificator
+        )
 ) -> MessageResponseSchema:
     stmt = select(ActivationTokenModel).options(
         joinedload(ActivationTokenModel.user)
@@ -186,20 +189,22 @@ async def activate_account(
     token_record = result.scalars().first()
 
     now_utc= datetime.now(timezone.utc)
-    if not token_record or cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc) < now_utc:
+    if not token_record or cast(
+            datetime, token_record.expires_at
+    ).replace(tzinfo=timezone.utc) < now_utc:
         if token_record:
             await db.delete(token_record)
             await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired activation token"
+            detail="Invalid or expired activation token."
         )
 
     user = token_record.user
     if user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is already activated"
+            detail="User account is already activated."
         )
 
     user.is_active = True
@@ -214,7 +219,7 @@ async def activate_account(
     )
 
     return MessageResponseSchema(
-        message="User acccount activated successfully."
+        message="User account activated successfully."
     )
 
 
@@ -223,8 +228,9 @@ async def activate_account(
     response_model=MessageResponseSchema,
     summary="Request Password Reset Token",
     description=(
-            "Allows a user to request a password reset token. If the user exists and is active, "
-            "a new token will be generated and any existing tokens will be invalidated."
+            "Allows a user to request a password reset token. If the user"
+            " exists and is active, a new token will be generated and any"
+            " existing tokens will be invalidated."
     ),
     status_code=status.HTTP_200_OK,
 )
@@ -241,7 +247,8 @@ async def request_password_reset(
 
     if not user or not user.is_active:
         return MessageResponseSchema(
-            message="If you are registered, you will receive an email with instructions"
+            message="If you are registered, you will receive an email with"
+                    " instructions."
         )
 
     await db.execute(
@@ -262,7 +269,8 @@ async def request_password_reset(
     )
 
     return MessageResponseSchema(
-        message="If you are registered, you will receive an email with instructions."
+        message="If you are registered, you will receive an email"
+                " with instructions."
     )
 
 @router.post(
@@ -332,7 +340,7 @@ async def password_reset_complete(
             await db.commit()
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
-            detail="Invalid email or token"
+            detail="Invalid email or token."
         )
 
     expires_at = cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc)
@@ -352,7 +360,7 @@ async def password_reset_complete(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occured while resetting the password"
+            detail="An error occurred while resetting the password."
         )
 
     login_link = "http://127.0.0.1/accounts/login/"
@@ -362,7 +370,7 @@ async def password_reset_complete(
         login_link
     )
 
-    return MessageResponseSchema(message="Password reset successfully")
+    return MessageResponseSchema(message="Password reset successfully.")
 
 @router.post(
     "/login/",
@@ -444,7 +452,7 @@ async def login_user(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occured while processing the request."
+            detail="An error occurred while processing the request."
         )
 
     jwt_access_token = jwt_manager.create_access_token({"user_id": user.id})
@@ -580,7 +588,7 @@ async def change_password(
     if not current_user.verify_password(password_data.old_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Old password is incorrect"
+            detail="Old password is incorrect."
         )
 
     if current_user.verify_password(password_data.new_password):
@@ -645,10 +653,10 @@ async def logout_user(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while logging out"
+            detail="An error occurred while logging out."
         )
 
-    return MessageResponseSchema(message="Logged out successfully")
+    return MessageResponseSchema(message="Logged out successfully.")
 
 
 @router.patch(
@@ -657,6 +665,48 @@ async def logout_user(
     status_code=status.HTTP_200_OK,
     summary="Change User Group",
     description="Change the group of a user. Only admins can perform this action.",
+    responses={
+        400: {
+            "description": "Bad Request - User or Group not found.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "User not found."
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Forbidden - Only admins can perform this action.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only admins can perform this action."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while changing user group."
+                    }
+                }
+            }
+        }
+    }
 )
 async def change_user_group(
         user_id: int,
@@ -678,7 +728,7 @@ async def change_user_group(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="user with id not found"
+            detail="User not found."
         )
 
     stmt = select(UserGroupModel).where(UserGroupModel.name == group_data.group)
@@ -708,7 +758,51 @@ async def change_user_group(
     response_model=MessageResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Manually Activate User Account",
-    description="Manually activate a user account. Only admins can perform this action.",
+    description="Manually activate a user account. Only admins can perform"
+                " this action.",
+    responses={
+        400: {
+            "description": "Bad Request - User not found or already"
+                           " activated.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "User has already been activated."
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Unauthorized - Missing or invalid token.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not authenticated"
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Forbidden - Only admins can perform this action.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only admins can perform this action."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Internal Server Error.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "An error occurred while activating user."
+                    }
+                }
+            }
+        }
+    }
 )
 async def manual_activate_account(
         user_id: int,
@@ -728,12 +822,12 @@ async def manual_activate_account(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="user with id not found"
+            detail="User not found."
         )
     if user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User has already activated"
+            detail="User has already been activated."
         )
     try:
         user.is_active = True
@@ -744,6 +838,5 @@ async def manual_activate_account(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while activating user."
         )
-
 
     return MessageResponseSchema(message="User activated successfully.")
