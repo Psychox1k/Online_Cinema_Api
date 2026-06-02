@@ -1,6 +1,8 @@
+import secrets
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBasicCredentials, HTTPBasic
 from fastapi import status, HTTPException, Depends
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -14,6 +16,7 @@ from security.token_manager import JWTAuthManager
 from storages import S3StorageInterface, S3StorageClient
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/cinema/accounts/login/")
+security = HTTPBasic()
 
 def get_settings() -> Settings:
     return settings
@@ -184,3 +187,15 @@ async def get_or_create_user_cart(
         await db.refresh(cart)
 
     return cart
+
+
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+    correct_username = secrets.compare_digest(credentials.username, settings.SWAGGER_USER)
+    correct_password = secrets.compare_digest(credentials.password, settings.SWAGGER_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
