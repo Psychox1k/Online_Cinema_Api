@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     EMAIL_HOST_PASSWORD: str
     EMAIL_USE_TLS: bool
 
+    SWAGGER_USER: str
+    SWAGGER_PASSWORD: str
+
     PATH_TO_EMAIL_TEMPLATES_DIR: str = str(BASE_DIR / "notifications" / "templates")
     ACTIVATION_EMAIL_TEMPLATE_NAME: str = "activation_request.html"
     ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME: str = "activation_complete.html"
@@ -36,6 +39,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
 
+    API_PREFIX: str = "/api/v1/cinema"
 
     @property
     def REDIS_URL(self) -> str:
@@ -51,6 +55,5 @@ class Settings(BaseSettings):
         env_file=".env",
         extra="ignore"
     )
-
 
 settings = Settings()
