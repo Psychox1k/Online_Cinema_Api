@@ -108,9 +108,9 @@ class MovieUpdateSchema(BaseModel):
     description: Optional[str] = None
     price: Optional[Decimal] = None
     certification_id: Optional[int] = None
-    genre: Optional[list[int]] = None
-    director: Optional[list[int]] = None
-    star: Optional[list[int]] = None
+    genres: Optional[list[int]] = None
+    directors: Optional[list[int]] = None
+    stars: Optional[list[int]] = None
 
     @field_validator("year")
     @classmethod

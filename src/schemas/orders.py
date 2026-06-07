@@ -15,6 +15,7 @@ class OrderMovieSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class OrderItemSchema(BaseModel):
     id: int
     movie_id: int
@@ -23,6 +24,7 @@ class OrderItemSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class OrderSchema(BaseModel):
     id: int
     user_id: int
@@ -30,7 +32,6 @@ class OrderSchema(BaseModel):
     status: OrderStatusEnum
     total_amount: Decimal
     items: list[OrderItemSchema]
-
 
     model_config = ConfigDict(from_attributes=True)
 

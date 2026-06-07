@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class NotificationSchema(BaseModel):
     id: int
-    to_user: int
+    user_id: int
     message: str
     is_read: bool
     created_at: datetime
