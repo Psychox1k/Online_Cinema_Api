@@ -175,7 +175,7 @@ async def remove_movie_from_cart(
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Movie with ID {movie_id} was not found in your cart."
+            detail=f"Item not found in cart."
         )
 
     try:

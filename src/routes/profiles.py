@@ -22,8 +22,9 @@ from storages import S3StorageInterface
 
 router = APIRouter()
 
+
 @router.post(
-    "",
+    "/",
     status_code=status.HTTP_201_CREATED,
     response_model=ProfileResponseSchema,
     summary="Create user profile",
@@ -152,6 +153,39 @@ async def create_profile(
     )
 
 
+@router.get(
+    "/me/",
+    status_code=status.HTTP_200_OK,
+    response_model=ProfileResponseSchema,
+    summary="Get current user profile",
+    description="Retrieve the profile of the currently authenticated user.",
+)
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    s3_client: S3StorageInterface = Depends(get_s3_storage_client),
+    current_user: UserModel = Depends(get_current_user)
+):
+    stmt = select(UserProfileModel).where(UserProfileModel.user_id == current_user.id)
+    result = await db.execute(stmt)
+    profile = result.scalar_one_or_none()
+
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found. Please create one."
+        )
+
+    avatar_url = await s3_client.get_file_url(profile.avatar)
+    return ProfileResponseSchema(
+        id=profile.id,
+        user_id=profile.user_id,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        gender=profile.gender,
+        date_of_birth=profile.date_of_birth,
+        info=profile.info,
+        avatar=avatar_url
+    )
 
 
 @router.get(
@@ -198,7 +232,6 @@ async def get_profile_by_id(
             detail="An error occurred while fetching the profile."
         )
 
-    db_profile = result.scalar_one_or_none()
     if not db_profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -254,8 +287,7 @@ async def get_all_profiles(
     avatar_urls = await asyncio.gather(*tasks)
 
     profiles = []
-    for profile in db_profiles:
-        avatar_url = await s3_client.get_file_url(profile.avatar)
+    for profile, avatar_url in zip(db_profiles, avatar_urls):
         profiles.append(ProfileResponseSchema(
             id=profile.id,
             user_id=profile.user_id,

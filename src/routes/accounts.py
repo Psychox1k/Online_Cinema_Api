@@ -19,7 +19,8 @@ from database import (
     UserGroupEnum,
     ActivationTokenModel,
     PasswordResetTokenModel,
-    RefreshTokenModel, UserProfileModel
+    RefreshTokenModel,
+    UserProfileModel
 )
 from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
@@ -377,7 +378,7 @@ async def password_reset_complete(
     response_model=UserLoginResponseSchema,
     summary="User Login",
     description="Authenticate a user and return access and refresh tokens.",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     responses={
         401: {
             "description": "Unauthorized - Invalid email or password.",

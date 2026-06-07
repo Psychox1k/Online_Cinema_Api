@@ -30,7 +30,7 @@ app.include_router(movies_router, prefix=f"{api_version_prefix}/movies", tags=["
 app.include_router(directors_router, prefix=f"{api_version_prefix}/directors", tags=["directors"])
 app.include_router(stars_router, prefix=f"{api_version_prefix}/stars", tags=["stars"])
 app.include_router(genres_router, prefix=f"{api_version_prefix}/genres", tags=["genres"])
-app.include_router(notifications_router, prefix=f"{api_version_prefix}/notifcations", tags=["notifications"])
+app.include_router(notifications_router, prefix=f"{api_version_prefix}/notifications", tags=["notifications"])
 app.include_router(carts_router, prefix=f"{api_version_prefix}/carts", tags=["carts"])
 app.include_router(orders_router, prefix=f"{api_version_prefix}/orders", tags=["orders"])
 

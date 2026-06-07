@@ -56,7 +56,7 @@ router = APIRouter()
         }
     }
 )
-async def get_own_order(
+async def get_own_orders(
         db: AsyncSession = Depends(get_db),
         current_user: UserModel = Depends(get_current_user)
 ):

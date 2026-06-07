@@ -1,4 +1,5 @@
 import math
+from asyncio import start_unix_server
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
@@ -6,6 +7,7 @@ from sqlalchemy import select, func, or_, delete
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.status import HTTP_400_BAD_REQUEST
 
 from config.dependencies import (
     get_current_moderator,
@@ -208,12 +210,12 @@ async def get_all_movies(
     description="Create a new movie. Only moderators and admins can perform"
                 " this action.",
     responses={
-        400: {
-            "description": "Bad Request - Invalid input or movie already exists.",
+        409: {
+            "description": "Conflict - Movie already exists.",
             "content": {
                 "application/json": {
                     "example": {
-                        "detail": "Movie existed"
+                        "detail": "Movie already exists."
                     }
                 }
             }
@@ -266,44 +268,38 @@ async def create_movie(
 
         if existing_movie:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Movie existed"
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Movie already exists."
             )
 
         genres = []
-        for genre_name in movie_data.genres:
-            genre_stmt = select(GenreModel).where(GenreModel.name == genre_name)
-            genre_result = await db.execute(genre_stmt)
-            genre = genre_result.scalars().first()
-
+        for genre_id in movie_data.genres:
+            genre = await db.get(GenreModel, genre_id)
             if not genre:
-                genre = GenreModel(name=genre_name)
-                db.add(genre)
-                await db.flush()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Genre with ID {genre_id} not found."
+                )
             genres.append(genre)
 
         stars = []
-        for star_name in movie_data.stars:
-            star_stmt = select(StarModel).where(StarModel.name == star_name)
-            star_result = await db.execute(star_stmt)
-            star = star_result.scalars().first()
-
+        for star_id in movie_data.stars:
+            star = await db.get(StarModel, star_id)
             if not star:
-                star = StarModel(name=star_name)
-                db.add(star)
-                await db.flush()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Star with ID {star_id} not found."
+                )
             stars.append(star)
 
         directors = []
-        for director_name in movie_data.directors:
-            director_stmt = select(DirectorModel).where(DirectorModel.name == director_name)
-            director_result = await db.execute(director_stmt)
-            director = director_result.scalars().first()
-
+        for director_id in movie_data.directors:
+            director = await db.get(DirectorModel, director_id)
             if not director:
-                director = DirectorModel(name=director_name)
-                db.add(director)
-                await db.flush()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Director with ID {director_id} not found."
+                )
             directors.append(director)
 
         movie = MovieModel(
@@ -455,46 +451,37 @@ async def movie_update(
 
         if genres is not None:
             genre_objects = []
-            for genre_name in genres:
-                genre_stmt = select(GenreModel).where(
-                    func.lower(GenreModel.name) == genre_name.lower()
-                )
-                genre_result = await db.execute(genre_stmt)
-                genre = genre_result.scalars().first()
+            for genre_id in genres:
+                genre = await db.get(GenreModel, genre_id)
                 if not genre:
-                    genre = GenreModel(name=genre_name)
-                    db.add(genre)
-                    await db.flush()
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Genre with ID {genre_id} not found."
+                    )
                 genre_objects.append(genre)
             db_movie.genres = genre_objects
 
         if directors is not None:
             director_objects = []
-            for director_name in directors:
-                director_stmt = select(DirectorModel).where(
-                    func.lower(DirectorModel.name) == director_name.lower()
-                )
-                director_result = await db.execute(director_stmt)
-                director = director_result.scalars().first()
+            for director_id in directors:
+                director = await db.get(DirectorModel, director_id)
                 if not director:
-                    director = DirectorModel(name=director_name)
-                    db.add(director)
-                    await db.flush()
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Director with ID {director_id} not found."
+                    )
                 director_objects.append(director)
             db_movie.directors = director_objects
 
         if stars is not None:
             star_objects = []
-            for star_name in stars:
-                star_stmt = select(StarModel).where(
-                    func.lower(StarModel.name) == star_name.lower()
-                )
-                star_result = await db.execute(star_stmt)
-                star = star_result.scalars().first()
+            for star_id in stars:
+                star = await db.get(StarModel, star_id)
                 if not star:
-                    star = StarModel(name=star_name)
-                    db.add(star)
-                    await db.flush()
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Star with ID {star_id} not found."
+                    )
                 star_objects.append(star)
             db_movie.stars = star_objects
 

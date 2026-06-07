@@ -44,7 +44,7 @@ router = APIRouter()
 async def get_user_notifcations(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
-) -> NotificationSchema:
+) -> list[NotificationSchema]:
     try:
         stmt = select(NotificationModel).where(
             NotificationModel.user_id == current_user.id
