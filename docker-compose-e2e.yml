@@ -32,6 +32,13 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres_password@db:5432/cinema_db_test
       REDIS_URL: redis://redis:6379/0
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_HOST: db
+      POSTGRES_DB_PORT: 5432
+      POSTGRES_DB: cinema_db_test
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SECRET_KEY_ACCESS: "supersecret"
       SECRET_KEY_REFRESH: "supersecret"
       EMAIL_HOST: smtp.dummy.com
