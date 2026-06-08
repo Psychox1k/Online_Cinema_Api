@@ -58,4 +58,4 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "poetry lock && poetry install && poetry run pytest src/tests/e2e/"
+    command: sh -c "pip install pytest-asyncio && poetry run pytest src/tests/e2e/"
