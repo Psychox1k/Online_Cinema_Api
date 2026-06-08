@@ -38,7 +38,7 @@ jobs:
       postgres:
         image: postgres:18-alpine
         ports: [5432:5432]
-        env: {POSTGRES_DB: cinema_db_test, POSTGRES_USER: user, POSTGRES_PASSWORD: password}
+        env: {POSTGRES_DB: cinema_db_test, POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres_password}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,9 +46,9 @@ jobs:
       - run: pip install poetry && poetry install
       - name: Run unit and integration tests
         env:
-          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/cinema_db_test
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres_password@localhost:5432/cinema_db_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_password
           POSTGRES_HOST: localhost
           POSTGRES_DB_PORT: 5432
           POSTGRES_DB: cinema_db_test
@@ -76,28 +76,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run E2E tests in Docker
-        env:
-          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/cinema_db_test
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_HOST: localhost
-          POSTGRES_DB_PORT: 5432
-          POSTGRES_DB: cinema_db_test
-          SECRET_KEY_ACCESS: supersecret_access
-          SECRET_KEY_REFRESH: supersecret_refresh
-          EMAIL_HOST: smtp.dummy.com
-          EMAIL_PORT: 587
-          EMAIL_HOST_USER: dummy
-          EMAIL_HOST_PASSWORD: dummy
-          EMAIL_USE_TLS: true
-          SWAGGER_USER: admin
-          SWAGGER_PASSWORD: admin
-          S3_STORAGE_HOST: localhost
-          S3_STORAGE_PORT: 9000
-          S3_STORAGE_ACCESS_KEY: dummy
-          S3_STORAGE_SECRET_KEY: dummy
-          S3_BUCKET_NAME: dummy-bucket
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
         run: |
           docker compose -f docker-compose-e2e.yml up --build --abort-on-container-exit --exit-code-from web
