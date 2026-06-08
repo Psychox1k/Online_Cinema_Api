@@ -44,8 +44,30 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
       - run: pip install poetry && poetry install
-      - env:
+      - name: Run unit and integration tests
+        env:
           DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/cinema_db_test
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_HOST: localhost
+          POSTGRES_DB_PORT: 5432
+          POSTGRES_DB: cinema_db_test
+          SECRET_KEY_ACCESS: supersecret_access
+          SECRET_KEY_REFRESH: supersecret_refresh
+          EMAIL_HOST: smtp.dummy.com
+          EMAIL_PORT: 587
+          EMAIL_HOST_USER: dummy
+          EMAIL_HOST_PASSWORD: dummy
+          EMAIL_USE_TLS: true
+          SWAGGER_USER: admin
+          SWAGGER_PASSWORD: admin
+          S3_STORAGE_HOST: localhost
+          S3_STORAGE_PORT: 9000
+          S3_STORAGE_ACCESS_KEY: dummy
+          S3_STORAGE_SECRET_KEY: dummy
+          S3_BUCKET_NAME: dummy-bucket
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: poetry run pytest src/tests/unit src/tests/integration
 
   testing_e2e:
@@ -54,5 +76,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run E2E tests in Docker
+        env:
+          DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/cinema_db_test
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_HOST: localhost
+          POSTGRES_DB_PORT: 5432
+          POSTGRES_DB: cinema_db_test
+          SECRET_KEY_ACCESS: supersecret_access
+          SECRET_KEY_REFRESH: supersecret_refresh
+          EMAIL_HOST: smtp.dummy.com
+          EMAIL_PORT: 587
+          EMAIL_HOST_USER: dummy
+          EMAIL_HOST_PASSWORD: dummy
+          EMAIL_USE_TLS: true
+          SWAGGER_USER: admin
+          SWAGGER_PASSWORD: admin
+          S3_STORAGE_HOST: localhost
+          S3_STORAGE_PORT: 9000
+          S3_STORAGE_ACCESS_KEY: dummy
+          S3_STORAGE_SECRET_KEY: dummy
+          S3_BUCKET_NAME: dummy-bucket
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: |
           docker compose -f docker-compose-e2e.yml up --build --abort-on-container-exit --exit-code-from web
