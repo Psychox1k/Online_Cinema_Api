@@ -9,7 +9,7 @@ from validation import (
     validate_name,
     validate_gender,
     validate_birth_date,
-    validate_image
+    validate_image,
 )
 
 
@@ -85,9 +85,7 @@ def test_validate_birth_date_underage():
     assert "at least 18 years old" in str(exc.value).lower()
 
 
-def create_dummy_upload_file(
-        image_format: str, size_bytes: int = 180
-) -> UploadFile:
+def create_dummy_upload_file(image_format: str, size_bytes: int = 180) -> UploadFile:
     """
     Helper function to generate a dummy UploadFile in
     memory for testing purposes.

@@ -5,7 +5,7 @@ celery_app = Celery(
     "cinema",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["celery_app.tasks"]
+    include=["celery_app.tasks"],
 )
 
 celery_app.config_from_object("celery_app.beat")

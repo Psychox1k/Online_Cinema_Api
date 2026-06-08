@@ -4,10 +4,8 @@ from fastapi import status
 
 @pytest.mark.asyncio
 async def test_e2e_full_user_purchasing_journey(
-    auth_client,
-    admin_client,
-    create_test_movie
-    ):
+    auth_client, admin_client, create_test_movie
+):
     """
     E2E Scenario: A complete user journey from browsing the catalog
     to making a purchase and canceling the order.
@@ -32,8 +30,7 @@ async def test_e2e_full_user_purchasing_journey(
 
     # STEP 3: User likes the movie
     like_response = await auth_client.post(
-        f"movies/{found_movie_id}/like/",
-        json={"is_like": True}
+        f"movies/{found_movie_id}/like/", json={"is_like": True}
     )
     assert like_response.status_code == status.HTTP_200_OK
 

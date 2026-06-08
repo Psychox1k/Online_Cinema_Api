@@ -15,17 +15,11 @@ async def test_create_profile_success(auth_client):
         "last_name": "Doe",
         "gender": "man",
         "date_of_birth": "1995-05-15",
-        "info": "Test information"
+        "info": "Test information",
     }
-    file_data = {
-        "avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")
-    }
+    file_data = {"avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")}
 
-    response = await auth_client.post(
-        "profiles/",
-        data=form_data,
-        files=file_data
-    )
+    response = await auth_client.post("profiles/", data=form_data, files=file_data)
     assert response.status_code == status.HTTP_201_CREATED
 
     data = response.json()
@@ -46,16 +40,12 @@ async def test_get_profile_by_id_success(auth_client):
         "last_name": "Smith",
         "gender": "woman",
         "date_of_birth": "1998-10-20",
-        "info": "Engineer"
+        "info": "Engineer",
     }
-    file_data = {
-        "avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")
-    }
+    file_data = {"avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")}
 
     create_response = await auth_client.post(
-        "profiles/",
-        data=form_data,
-        files=file_data
+        "profiles/", data=form_data, files=file_data
     )
     assert create_response.status_code == status.HTTP_201_CREATED
     profile_id = create_response.json()["id"]
@@ -81,17 +71,11 @@ async def test_create_profile_invalid_gender_fails(auth_client):
         "last_name": "Predator",
         "gender": "invalid_gender",
         "date_of_birth": "1990-01-01",
-        "info": "Valid info"
+        "info": "Valid info",
     }
-    file_data = {
-        "avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")
-    }
+    file_data = {"avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")}
 
-    response = await auth_client.post(
-        "profiles/",
-        data=form_data,
-        files=file_data
-    )
+    response = await auth_client.post("profiles/", data=form_data, files=file_data)
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
@@ -107,17 +91,13 @@ async def test_create_profile_duplicate_fails(auth_client):
         "last_name": "Doe",
         "gender": "man",
         "date_of_birth": "1990-01-01",
-        "info": "Info"
+        "info": "Info",
     }
     file_data = {"avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")}
 
     await auth_client.post("profiles/", data=form_data, files=file_data)
 
-    response = await auth_client.post(
-        "profiles/",
-        data=form_data,
-        files=file_data
-    )
+    response = await auth_client.post("profiles/", data=form_data, files=file_data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()["detail"] == "User already has a profile."
@@ -144,12 +124,10 @@ async def test_get_all_profiles_success(auth_client):
         "last_name": "Wonder",
         "gender": "woman",
         "date_of_birth": "2000-01-01",
-        "info": "List info"
+        "info": "List info",
     }
     file_data = {"avatar": ("avatar.jpg", b"dummy_bytes", "image/jpeg")}
-    await auth_client.post(
-        "profiles/", data=form_data, files=file_data
-    )
+    await auth_client.post("profiles/", data=form_data, files=file_data)
 
     response = await auth_client.get("profiles/")
     assert response.status_code == status.HTTP_200_OK

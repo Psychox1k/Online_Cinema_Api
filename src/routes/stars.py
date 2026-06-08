@@ -6,11 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.dependencies import get_current_moderator, get_current_admin
 from database import get_db, StarModel, UserModel
 from schemas import MessageResponseSchema
-from schemas.movies import (
-    StarCreateSchema,
-    StarUpdateSchema,
-    StarResponseSchema
-)
+from schemas.movies import StarCreateSchema, StarUpdateSchema, StarResponseSchema
 
 router = APIRouter()
 
@@ -24,19 +20,11 @@ router = APIRouter()
     responses={
         500: {
             "description": "Internal Server Error.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Database error."
-                    }
-                }
-            }
+            "content": {"application/json": {"example": {"detail": "Database error."}}},
         }
-    }
+    },
 )
-async def get_all_stars(
-        db: AsyncSession = Depends(get_db)
-) -> list[StarResponseSchema]:
+async def get_all_stars(db: AsyncSession = Depends(get_db)) -> list[StarResponseSchema]:
     try:
         stmt = select(StarModel)
         result = await db.execute(stmt)
@@ -44,7 +32,7 @@ async def get_all_stars(
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while fetching stars."
+            detail="An error occurred while fetching stars.",
         )
 
 
@@ -57,30 +45,15 @@ async def get_all_stars(
     responses={
         404: {
             "description": "Not Found - Star not found.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Star not found."
-                    }
-                }
-            }
+            "content": {"application/json": {"example": {"detail": "Star not found."}}},
         },
         500: {
             "description": "Internal Server Error.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Database error."
-                    }
-                }
-            }
-        }
-    }
+            "content": {"application/json": {"example": {"detail": "Database error."}}},
+        },
+    },
 )
-async def get_star_by_id(
-        star_id: int,
-        db: AsyncSession = Depends(get_db)
-):
+async def get_star_by_id(star_id: int, db: AsyncSession = Depends(get_db)):
     try:
         stmt = select(StarModel).where(StarModel.id == star_id)
         result = await db.execute(stmt)
@@ -88,14 +61,13 @@ async def get_star_by_id(
 
         if not star:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Star not found."
+                status_code=status.HTTP_404_NOT_FOUND, detail="Star not found."
             )
         return star
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while fetching star."
+            detail="An error occurred while fetching star.",
         )
 
 
@@ -105,54 +77,42 @@ async def get_star_by_id(
     status_code=status.HTTP_201_CREATED,
     summary="Create star",
     description="Create a new star. Only moderators and admins can perform"
-                " this action.",
+    " this action.",
     responses={
         401: {
             "description": "Unauthorized - Missing or invalid token.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not authenticated"
-                    }
-                }
-            }
+                "application/json": {"example": {"detail": "Not authenticated"}}
+            },
         },
         403: {
             "description": "Forbidden - Insufficient permissions.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Only moderators can perform this action."
-                    }
+                    "example": {"detail": "Only moderators can perform this action."}
                 }
-            }
+            },
         },
         409: {
             "description": "Conflict - Star with this name already exists.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Star already exists."
-                    }
-                }
-            }
+                "application/json": {"example": {"detail": "Star already exists."}}
+            },
         },
         500: {
             "description": "Internal Server Error.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "An error occurred while creating star."
-                    }
+                    "example": {"detail": "An error occurred while creating star."}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def create_star(
     star_data: StarCreateSchema,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_moderator)
+    current_user: UserModel = Depends(get_current_moderator),
 ):
     stmt = select(StarModel).where(StarModel.name == star_data.name)
     result = await db.execute(stmt)
@@ -160,8 +120,7 @@ async def create_star(
 
     if existing_star:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Star already exists."
+            status_code=status.HTTP_409_CONFLICT, detail="Star already exists."
         )
     try:
         star = StarModel(name=star_data.name)
@@ -173,74 +132,58 @@ async def create_star(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while creating star."
+            detail="An error occurred while creating star.",
         )
+
 
 @router.patch(
     "/{star_id}/",
     response_model=StarResponseSchema,
     status_code=status.HTTP_200_OK,
     summary="Update star",
-    description="Update a star. Only moderators and admins"
-                " can perform this action.",
+    description="Update a star. Only moderators and admins" " can perform this action.",
     responses={
         401: {
             "description": "Unauthorized - Missing or invalid token.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not authenticated"
-                    }
-                }
-            }
+                "application/json": {"example": {"detail": "Not authenticated"}}
+            },
         },
         403: {
             "description": "Forbidden - Insufficient permissions.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Only moderators can perform this action."
-                    }
+                    "example": {"detail": "Only moderators can perform this action."}
                 }
-            }
+            },
         },
         404: {
             "description": "Not Found - Star not found.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Star not found."
-                    }
-                }
-            }
+            "content": {"application/json": {"example": {"detail": "Star not found."}}},
         },
         409: {
             "description": "Conflict - Star with this name already exists.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Star with this name already exists."
-                    }
+                    "example": {"detail": "Star with this name already exists."}
                 }
-            }
+            },
         },
         500: {
             "description": "Internal Server Error.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "An error occurred while updating star."
-                    }
+                    "example": {"detail": "An error occurred while updating star."}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def update_star(
     star_id: int,
     star_data: StarUpdateSchema,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_moderator)
+    current_user: UserModel = Depends(get_current_moderator),
 ):
     stmt = select(StarModel).where(StarModel.id == star_id)
     result = await db.execute(stmt)
@@ -248,8 +191,7 @@ async def update_star(
 
     if not star:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Star not found."
+            status_code=status.HTTP_404_NOT_FOUND, detail="Star not found."
         )
     try:
         star.name = star_data.name
@@ -260,14 +202,15 @@ async def update_star(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Star with this name already exists."
+            detail="Star with this name already exists.",
         )
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while updating star."
+            detail="An error occurred while updating star.",
         )
+
 
 @router.delete(
     "/{star_id}/",
@@ -279,49 +222,35 @@ async def update_star(
         401: {
             "description": "Unauthorized - Missing or invalid token.",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not authenticated"
-                    }
-                }
-            }
+                "application/json": {"example": {"detail": "Not authenticated"}}
+            },
         },
         403: {
             "description": "Forbidden - Insufficient permissions.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Only admins can perform this action."
-                    }
+                    "example": {"detail": "Only admins can perform this action."}
                 }
-            }
+            },
         },
         404: {
             "description": "Not Found - Star not found.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Star not found."
-                    }
-                }
-            }
+            "content": {"application/json": {"example": {"detail": "Star not found."}}},
         },
         500: {
             "description": "Internal Server Error.",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "An error occurred while deleting star."
-                    }
+                    "example": {"detail": "An error occurred while deleting star."}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def delete_star(
-        star_id: int,
-        db: AsyncSession = Depends(get_db),
-        current_user: UserModel = Depends(get_current_admin)
+    star_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_admin),
 ):
     stmt = select(StarModel).where(StarModel.id == star_id)
     result = await db.execute(stmt)
@@ -329,8 +258,7 @@ async def delete_star(
 
     if not star:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Star not found."
+            status_code=status.HTTP_404_NOT_FOUND, detail="Star not found."
         )
 
     try:
@@ -341,5 +269,5 @@ async def delete_star(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while deleting star."
+            detail="An error occurred while deleting star.",
         )

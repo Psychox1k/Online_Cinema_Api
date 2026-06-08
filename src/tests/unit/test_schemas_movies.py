@@ -19,12 +19,16 @@ def valid_movie_data():
         "imdb": 8.7,
         "votes": 1700000,
         "price": 14.99,
-        "description": "A computer hacker learns from mysterious rebels about the true nature of his reality.",
+        "description": (
+            "A computer hacker learns from mysterious"
+            " rebels about the true nature of his reality."
+        ),
         "certification_id": 1,
         "genres": [1, 2],
         "stars": [1, 2],
-        "directors": [1]
+        "directors": [1],
     }
+
 
 def test_movie_create_schema_success(valid_movie_data):
     """
@@ -39,6 +43,7 @@ def test_movie_create_schema_success(valid_movie_data):
     assert schema.year == 1999
     assert schema.imdb == 8.7
     assert schema.price == Decimal("14.99")
+
 
 def test_movie_create_schema_invalid_year(valid_movie_data):
     """
@@ -74,7 +79,6 @@ def test_movie_create_schema_invalid_imdb(valid_movie_data, bad_imdb_score):
         MovieCreateSchema(**invalid_data)
 
     assert "imdb" in str(exc_info.value).lower()
-
 
 
 def test_movie_create_schema_invalid_price(valid_movie_data):

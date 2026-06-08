@@ -10,10 +10,7 @@ def test_user_registration_schema_success():
      email and a strong password.
     :return:
     """
-    valid_data = {
-        "email": "test@example.com",
-        "password": "Strong_e!le123"
-    }
+    valid_data = {"email": "test@example.com", "password": "Strong_e!le123"}
 
     schema = UserRegistrationRequestSchema(**valid_data)
 
@@ -27,10 +24,7 @@ def test_user_registration_schema_invalid_email():
      an invalid email format is provided.
     :return:
     """
-    invalid_data = {
-        "email": "not-an-email-at-all",
-        "password": "some_password"
-    }
+    invalid_data = {"email": "not-an-email-at-all", "password": "some_password"}
 
     with pytest.raises(ValidationError):
         UserRegistrationRequestSchema(**invalid_data)
@@ -42,9 +36,7 @@ def test_user_registration_schema_missing_fields():
      fields (e.g., password) are missing.
     :return:
     """
-    missing_data = {
-        "email": "test@example.com"
-    }
+    missing_data = {"email": "test@example.com"}
 
     with pytest.raises(ValidationError) as exc_info:
         UserRegistrationRequestSchema(**missing_data)

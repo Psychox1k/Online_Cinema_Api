@@ -3,16 +3,14 @@ from fastapi import status
 
 from config.dependencies import get_current_user
 from main import app
+
 # ==============================================================================
 # CREATE ORDER (CHECKOUT) TESTS
 # ==============================================================================
 
 
 @pytest.mark.asyncio
-async def test_create_order_success(
-        auth_client,
-        create_test_movie
-):
+async def test_create_order_success(auth_client, create_test_movie):
     """
     Test that a user can successfully create an order from their cart.
     :param auth_client:
@@ -33,6 +31,7 @@ async def test_create_order_success(
     assert float(data["total_amount"]) > 0
     assert len(data["items"]) == 2
 
+
 @pytest.mark.asyncio
 async def test_create_order_empty_cart_bad_request(auth_client):
     """
@@ -43,8 +42,10 @@ async def test_create_order_empty_cart_bad_request(auth_client):
     response = await auth_client.post("orders/")
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()["detail"] == ("You cannot make an order with an"
-                                         " empty cart.")
+    assert response.json()["detail"] == (
+        "You cannot make an order with an" " empty cart."
+    )
+
 
 # ==============================================================================
 # READ (GET) ORDERS TESTS
@@ -52,10 +53,7 @@ async def test_create_order_empty_cart_bad_request(auth_client):
 
 
 @pytest.mark.asyncio
-async def test_get_user_orders_success(
-        auth_client,
-        create_test_movie
-):
+async def test_get_user_orders_success(auth_client, create_test_movie):
     """
     Test that a user can retrieve their order history.
     :param auth_client:
@@ -97,9 +95,7 @@ async def test_get_order_by_id_success(auth_client, create_test_movie):
 
 @pytest.mark.asyncio
 async def test_get_others_order_forbidden(
-    auth_client,
-    create_test_user,
-    create_test_movie
+    auth_client, create_test_user, create_test_movie
 ):
     """
     Test that a user cannot view someone else's
@@ -125,10 +121,7 @@ async def test_get_others_order_forbidden(
 
 
 @pytest.mark.asyncio
-async def test_cancel_order(
-        auth_client,
-        create_test_movie
-):
+async def test_cancel_order(auth_client, create_test_movie):
     """
     Test that a user can successfully cancel their pending order.
     :param auth_client:

@@ -7,3 +7,15 @@ from routes.genres import router as genres_router
 from routes.carts import router as carts_router
 from routes.notifications import router as notifications_router
 from routes.orders import router as orders_router
+
+__all__ = [
+    "accounts_router",
+    "profiles_router",
+    "movies_router",
+    "directors_router",
+    "stars_router",
+    "genres_router",
+    "carts_router",
+    "notifications_router",
+    "orders_router",
+]

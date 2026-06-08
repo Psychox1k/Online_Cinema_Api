@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator, ConfigDict
 from uuid import UUID
 from decimal import Decimal
-from typing import Optional, Any, Self
+from typing import Optional
 
 from validation import validate_imdb, validate_year, validate_price
 
@@ -15,52 +15,67 @@ class CertificationSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 # ===== GENRE =====
 class GenreBaseSchema(BaseModel):
     name: str
 
+
 class GenreCreateSchema(GenreBaseSchema):
     pass
+
 
 class GenreUpdateSchema(BaseModel):
     name: Optional[str] = None
 
+
 class GenreResponseSchema(GenreBaseSchema):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
+
 class GenreWithMovieCountSchema(BaseModel):
     id: int
     name: str
     movie_count: int
     model_config = ConfigDict(from_attributes=True)
 
+
 # ===== STAR =====
 class StarBaseSchema(BaseModel):
     name: str
 
+
 class StarCreateSchema(StarBaseSchema):
     pass
 
+
 class StarUpdateSchema(BaseModel):
     name: Optional[str] = None
+
 
 class StarResponseSchema(StarBaseSchema):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+
 # ===== DIRECTOR =====
 class DirectorBaseSchema(BaseModel):
     name: str
 
+
 class DirectorCreateSchema(DirectorBaseSchema):
     pass
+
 
 class DirectorUpdateSchema(BaseModel):
     name: Optional[str] = None
 
+
 class DirectorResponseSchema(DirectorBaseSchema):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
 
 # ===== MOVIE =====
 class MovieBaseSchema(BaseModel):
@@ -139,6 +154,7 @@ class MovieListSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class MovieDetailSchema(BaseModel):
     id: int
     uuid: UUID
@@ -163,12 +179,15 @@ class MovieDetailSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 # ===== LIKES =====
 class MovieLikeSchema(BaseModel):
     is_like: bool
 
+
 class MovieLikeResponseSchema(BaseModel):
     message: str
+
 
 # ===== RATING =====
 class MovieRatingSchema(BaseModel):
@@ -181,8 +200,10 @@ class MovieRatingSchema(BaseModel):
             raise ValueError("Rating must be between 1 and 10")
         return value
 
+
 class MovieRatingResponseSchema(BaseModel):
     message: str
+
 
 # ===== FAVORITES =====
 class FavoriteResponseSchema(BaseModel):
@@ -190,13 +211,16 @@ class FavoriteResponseSchema(BaseModel):
     movie: MovieListSchema
     model_config = ConfigDict(from_attributes=True)
 
+
 # ===== COMMENTS =====
 class CommentCreateSchema(BaseModel):
     text: str
     parent_id: Optional[int] = None
 
+
 class CommentUpdateSchema(BaseModel):
     text: str
+
 
 class CommentResponseSchema(BaseModel):
     id: int
@@ -208,11 +232,14 @@ class CommentResponseSchema(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
 # ===== COMMENTS =====
+
 
 class PaginatedMoviesSchema(BaseModel):
     items: list[MovieListSchema]
     total: int
     page: int
-    per_page:int
+    per_page: int
     total_pages: int

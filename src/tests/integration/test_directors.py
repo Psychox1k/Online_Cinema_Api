@@ -1,10 +1,10 @@
 import pytest
 from fastapi import status
 
-
 # ==============================================================================
 # CREATE (POST) TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_director_success_as_admin(admin_client):
@@ -25,7 +25,8 @@ async def test_create_director_success_as_admin(admin_client):
 @pytest.mark.asyncio
 async def test_create_director_forbidden_for_user(auth_client):
     """
-    Test that a regular authenticated user cannot create a director (403 Forbidden).
+    Test that a regular authenticated user
+    cannot create a director (403 Forbidden).
     :param auth_client:
     :return:
     """
@@ -38,7 +39,8 @@ async def test_create_director_forbidden_for_user(auth_client):
 @pytest.mark.asyncio
 async def test_create_director_conflict(admin_client):
     """
-    Test that creating a director with an already existing name returns a 409 Conflict.
+    Test that creating a director with an already
+    existing name returns a 409 Conflict.
     :param admin_client:
     :return:
     """
@@ -56,6 +58,7 @@ async def test_create_director_conflict(admin_client):
 # ==============================================================================
 # READ (GET) TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_get_all_directors_success(admin_client, client):
@@ -85,7 +88,9 @@ async def test_get_director_by_id_success(admin_client, client):
     :param client:
     :return:
     """
-    create_response = await admin_client.post("directors/", json={"name": "Guy Ritchie"})
+    create_response = await admin_client.post(
+        "directors/", json={"name": "Guy Ritchie"}
+    )
     director_id = create_response.json()["id"]
 
     response = await client.get(f"directors/{director_id}/")
@@ -113,6 +118,7 @@ async def test_get_director_by_id_not_found(client):
 # UPDATE (PATCH) TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_update_director_success(admin_client):
     """
@@ -124,7 +130,9 @@ async def test_update_director_success(admin_client):
     director_id = create_response.json()["id"]
 
     update_payload = {"name": "New Updated Name"}
-    response = await admin_client.patch(f"directors/{director_id}/", json=update_payload)
+    response = await admin_client.patch(
+        f"directors/{director_id}/", json=update_payload
+    )
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["name"] == "New Updated Name"
@@ -141,8 +149,7 @@ async def test_update_director_forbidden_for_user(create_test_director, auth_cli
     director = await create_test_director(name="Some Name")
 
     response = await auth_client.patch(
-        f"directors/{director.id}/",
-        json={"name": "Hacked Name"}
+        f"directors/{director.id}/", json={"name": "Hacked Name"}
     )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -152,6 +159,7 @@ async def test_update_director_forbidden_for_user(create_test_director, auth_cli
 # DELETE TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_delete_director_success(admin_client, client):
     """
@@ -160,12 +168,14 @@ async def test_delete_director_success(admin_client, client):
     :param client:
     :return:
     """
-    create_response = await admin_client.post("directors/", json={"name": "To Be Deleted"})
+    create_response = await admin_client.post(
+        "directors/", json={"name": "To Be Deleted"}
+    )
     director_id = create_response.json()["id"]
 
     delete_response = await admin_client.delete(f"directors/{director_id}/")
     assert delete_response.status_code == status.HTTP_200_OK
-    assert delete_response.json()["message"] == "director successfully deleted."
+    assert delete_response.json()["message"] == ("director successfully deleted.")
 
     get_response = await client.get(f"directors/{director_id}/")
     assert get_response.status_code == status.HTTP_404_NOT_FOUND

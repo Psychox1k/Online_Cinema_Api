@@ -13,6 +13,7 @@ from database.session import engine
 def delete_expired_tokens():
     asyncio.run(_delete_expired_tokens())
 
+
 async def _delete_expired_tokens():
     try:
         async with get_postgresql_db_contextmanager() as db:

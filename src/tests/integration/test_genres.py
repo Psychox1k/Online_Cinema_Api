@@ -1,10 +1,10 @@
 import pytest
 from fastapi import status
 
-
 # ==============================================================================
 # CREATE (POST) TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_genre_success_as_admin(admin_client):
@@ -58,6 +58,7 @@ async def test_create_genre_conflict(admin_client):
 # READ (GET) TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_all_genres_success(admin_client, client):
     """
@@ -87,10 +88,7 @@ async def test_get_genre_by_id_success(admin_client, client):
     :param client:
     :return:
     """
-    create_response = await admin_client.post(
-        "genres/",
-        json={"name": "Sci-Fi"}
-    )
+    create_response = await admin_client.post("genres/", json={"name": "Sci-Fi"})
     genre_id = create_response.json()["id"]
 
     # Action
@@ -119,6 +117,7 @@ async def test_get_genre_by_id_not_found(client):
 # UPDATE (PATCH) TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_update_genre_success(admin_client):
     """
@@ -126,27 +125,18 @@ async def test_update_genre_success(admin_client):
     :param admin_client:
     :return:
     """
-    create_response = await admin_client.post(
-        "genres/",
-        json={"name": "Old Genre"}
-    )
+    create_response = await admin_client.post("genres/", json={"name": "Old Genre"})
     genre_id = create_response.json()["id"]
 
     update_payload = {"name": "New Genre"}
-    response = await admin_client.patch(
-        f"genres/{genre_id}/",
-        json=update_payload
-    )
+    response = await admin_client.patch(f"genres/{genre_id}/", json=update_payload)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["name"] == "New Genre"
 
 
 @pytest.mark.asyncio
-async def test_update_genre_forbidden_for_user(
-        auth_client,
-        create_test_genre
-):
+async def test_update_genre_forbidden_for_user(auth_client, create_test_genre):
     """
     Test that a regular user cannot update a genre.
     Uses factory to prevent client fixture clashing.
@@ -157,8 +147,7 @@ async def test_update_genre_forbidden_for_user(
     genre = await create_test_genre(name="Documentary")
 
     response = await auth_client.patch(
-        f"genres/{genre.id}/",
-        json={"name": "Hacked Genre"}
+        f"genres/{genre.id}/", json={"name": "Hacked Genre"}
     )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -168,6 +157,7 @@ async def test_update_genre_forbidden_for_user(
 # DELETE TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_delete_genre_success(admin_client, client):
     """
@@ -176,10 +166,7 @@ async def test_delete_genre_success(admin_client, client):
     :param client:
     :return:
     """
-    create_response = await admin_client.post(
-        "genres/",
-        json={"name": "To Be Deleted"}
-    )
+    create_response = await admin_client.post("genres/", json={"name": "To Be Deleted"})
     genre_id = create_response.json()["id"]
 
     delete_response = await admin_client.delete(f"genres/{genre_id}/")
@@ -191,10 +178,7 @@ async def test_delete_genre_success(admin_client, client):
 
 
 @pytest.mark.asyncio
-async def test_delete_genre_forbidden_for_user(
-        auth_client,
-        create_test_genre
-):
+async def test_delete_genre_forbidden_for_user(auth_client, create_test_genre):
     """
     Test that a regular user cannot delete a genre.
     Uses factory to prevent client fixture clashing.

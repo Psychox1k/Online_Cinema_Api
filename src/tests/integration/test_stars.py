@@ -14,10 +14,7 @@ async def test_create_star_success_as_admin(admin_client):
     :return:
     """
     payload = {"name": "Christian Bale"}
-    response = await admin_client.post(
-        "stars/",
-        json=payload
-    )
+    response = await admin_client.post("stars/", json=payload)
 
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
@@ -60,6 +57,7 @@ async def test_create_star_conflict(admin_client):
 # READ (GET) TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_all_stars_success(admin_client, client):
     """
@@ -88,7 +86,9 @@ async def test_get_star_by_id_success(admin_client, client):
     :return:
     """
 
-    create_response = await admin_client.post("stars/", json={"name": "Matthew McConaughey"})
+    create_response = await admin_client.post(
+        "stars/", json={"name": "Matthew McConaughey"}
+    )
     star_id = create_response.json()["id"]
 
     response = await client.get(f"stars/{star_id}/")
@@ -116,6 +116,7 @@ async def test_get_star_by_id_not_found(client):
 # UPDATE (PATCH) TESTS
 # ==============================================================================
 
+
 @pytest.mark.asyncio
 async def test_update_star_success(admin_client):
     """
@@ -123,16 +124,11 @@ async def test_update_star_success(admin_client):
     :param admin_client:
     :return:
     """
-    create_response = await admin_client.post(
-        "stars/", json={"name": "Old Star Name"}
-    )
+    create_response = await admin_client.post("stars/", json={"name": "Old Star Name"})
     star_id = create_response.json()["id"]
 
     update_payload = {"name": "New Updated Star Name"}
-    response = await admin_client.patch(
-        f"stars/{star_id}/",
-        json=update_payload
-    )
+    response = await admin_client.patch(f"stars/{star_id}/", json=update_payload)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["name"] == "New Updated Star Name"
@@ -151,8 +147,7 @@ async def test_update_star_forbidden_for_user(auth_client, create_test_star):
     star = await create_test_star(name="Ryan Gosling")
 
     response = await auth_client.patch(
-        f"stars/{star.id}/",
-        json={"name": "Hacked Star Name"}
+        f"stars/{star.id}/", json={"name": "Hacked Star Name"}
     )
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -161,6 +156,7 @@ async def test_update_star_forbidden_for_user(auth_client, create_test_star):
 # ==============================================================================
 # DELETE TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_delete_star_success(admin_client, client):
@@ -175,16 +171,12 @@ async def test_delete_star_success(admin_client, client):
     )
     star_id = create_response.json()["id"]
 
-    delete_response = await admin_client.delete(
-        f"stars/{star_id}/"
-    )
+    delete_response = await admin_client.delete(f"stars/{star_id}/")
     assert delete_response.status_code == status.HTTP_200_OK
 
     assert delete_response.json()["message"] == "Star successfully deleted."
 
-    get_response = await client.get(
-        f"stars/{star_id}/"
-    )
+    get_response = await client.get(f"stars/{star_id}/")
     assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
 

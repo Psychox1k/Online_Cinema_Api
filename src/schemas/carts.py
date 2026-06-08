@@ -14,12 +14,15 @@ class CartMovieSchema(BaseModel):
     genres: list[GenreResponseSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
 class CartItemSchema(BaseModel):
     id: int
     movie_id: int
     added_at: datetime
     movie: CartMovieSchema
     model_config = ConfigDict(from_attributes=True)
+
 
 class CartSchema(BaseModel):
     id: int

@@ -1,13 +1,10 @@
 import pytest
 from fastapi import status
-from starlette.status import HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.asyncio
 async def test_e2e_admin_deletes_movie_during_checkout(
-        auth_client,
-        admin_client,
-        create_test_movie
+    auth_client, admin_client, create_test_movie
 ):
     """
     E2E Edge Case: A user adds a movie to their cart.
@@ -37,6 +34,5 @@ async def test_e2e_admin_deletes_movie_during_checkout(
     # STEP 5: User attempts to checkout (create an order)
     order_create_response = await auth_client.post("orders/")
 
-
-    assert order_create_response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR
-    assert order_create_response.status_code == HTTP_400_BAD_REQUEST
+    assert order_create_response.status_code != (status.HTTP_500_INTERNAL_SERVER_ERROR)
+    assert order_create_response.status_code == status.HTTP_400_BAD_REQUEST

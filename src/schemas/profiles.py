@@ -1,14 +1,10 @@
 from datetime import date
 
-from fastapi import UploadFile, Form, File, HTTPException
+from fastapi import UploadFile, HTTPException
 from pydantic import BaseModel, field_validator, HttpUrl
 
-from validation import (
-    validate_name,
-    validate_image,
-    validate_gender,
-    validate_birth_date
-)
+
+from validation import validate_name, validate_gender, validate_birth_date
 
 
 class ProfileCreateSchema(BaseModel):
@@ -28,14 +24,15 @@ class ProfileCreateSchema(BaseModel):
         except ValueError as e:
             raise HTTPException(
                 status_code=422,
-                detail=[{
-                    "type": "value_error",
-                    "loc": ["first_name" if "first_name" in name else "last_name"],
-                    "msg": str(e),
-                    "input": name
-                }]
+                detail=[
+                    {
+                        "type": "value_error",
+                        "loc": ["first_name" if "first_name" in name else "last_name"],
+                        "msg": str(e),
+                        "input": name,
+                    }
+                ],
             )
-    
 
     @field_validator("gender")
     @classmethod
@@ -46,13 +43,16 @@ class ProfileCreateSchema(BaseModel):
         except ValueError as e:
             raise HTTPException(
                 status_code=422,
-                detail=[{
-                    "type": "value_error",
-                    "loc": ["gender"],
-                    "msg": str(e),
-                    "input": gender
-                }]
+                detail=[
+                    {
+                        "type": "value_error",
+                        "loc": ["gender"],
+                        "msg": str(e),
+                        "input": gender,
+                    }
+                ],
             )
+
     @field_validator("date_of_birth")
     @classmethod
     def validate_date_of_birth(cls, date_of_birth: date) -> date:
@@ -62,12 +62,14 @@ class ProfileCreateSchema(BaseModel):
         except ValueError as e:
             raise HTTPException(
                 status_code=422,
-                detail=[{
-                    "type": "value_error",
-                    "loc": ["date_of_birth"],
-                    "msg": str(e),
-                    "input": date_of_birth
-                }]
+                detail=[
+                    {
+                        "type": "value_error",
+                        "loc": ["date_of_birth"],
+                        "msg": str(e),
+                        "input": date_of_birth,
+                    }
+                ],
             )
 
     @field_validator("info")
@@ -77,12 +79,14 @@ class ProfileCreateSchema(BaseModel):
         if not cleaned_info:
             raise HTTPException(
                 status_code=422,
-                detail=[{
-                    "type": "value_error",
-                    "loc": ["info"],
-                    "msg": "Info field cannot be empty or contain only spaces.",
-                    "input": info
-                }]
+                detail=[
+                    {
+                        "type": "value_error",
+                        "loc": ["info"],
+                        "msg": "Info field cannot be empty" " or contain only spaces.",
+                        "input": info,
+                    }
+                ],
             )
 
 
@@ -95,4 +99,3 @@ class ProfileResponseSchema(BaseModel):
     date_of_birth: date
     info: str
     avatar: HttpUrl
-

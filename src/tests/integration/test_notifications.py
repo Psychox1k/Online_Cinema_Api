@@ -4,7 +4,6 @@ from fastapi import status
 
 from config.dependencies import get_current_user
 from main import app
-from tests.conftest import moderator_client
 
 
 @pytest.mark.asyncio
@@ -14,7 +13,7 @@ async def test_movie_delete_creates_notification(
     auth_client,
     create_test_movie,
     create_test_admin,
-    create_test_moderator
+    create_test_moderator,
 ):
     """
     Test that deleting a movie present in users' carts generates

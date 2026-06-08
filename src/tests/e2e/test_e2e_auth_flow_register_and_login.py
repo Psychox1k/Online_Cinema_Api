@@ -22,8 +22,10 @@ async def test_e2e_auth_flow_register_and_login(client, db_session):
     await client.post("accounts/register/", json=register_payload)
 
     # STEP 2: Fetch activation code from the database
-    stmt = select(ActivationTokenModel).join(UserModel).where(
-        UserModel.email == user_email
+    stmt = (
+        select(ActivationTokenModel)
+        .join(UserModel)
+        .where(UserModel.email == user_email)
     )
 
     result = await db_session.execute(stmt)
@@ -32,10 +34,7 @@ async def test_e2e_auth_flow_register_and_login(client, db_session):
 
     # STEP 3: Activate account
     activation_payload = {"email": user_email, "token": activation_token}
-    act_response = await client.post(
-        "accounts/activate/",
-        json=activation_payload
-    )
+    act_response = await client.post("accounts/activate/", json=activation_payload)
 
     assert act_response.status_code == status.HTTP_200_OK
 
@@ -53,17 +52,16 @@ async def test_e2e_auth_flow_register_and_login(client, db_session):
         "last_name": "Klymnko",
         "gender": "man",
         "date_of_birth": "2000-01-01",
-        "info": "Law student"
+        "info": "Law student",
     }
 
     files = {"avatar": ("test.jpg", b"fake_image_content", "image/jpeg")}
-
 
     await client.post(
         "profiles/",
         data=profile_data,
         files=files,
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={"Authorization": f"Bearer {access_token}"},
     )
 
     headers = {"Authorization": f"Bearer {access_token}"}

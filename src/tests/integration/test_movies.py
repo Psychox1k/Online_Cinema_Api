@@ -1,10 +1,10 @@
 import pytest
 from fastapi import status
 
-
 # ==============================================================================
 # CREATE (POST) TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_create_movie_success_as_admin(
@@ -12,7 +12,7 @@ async def test_create_movie_success_as_admin(
     create_test_director,
     create_test_star,
     create_test_genre,
-    create_test_certification
+    create_test_certification,
 ):
     """
     Test that an admin user can successfully create a new movie.
@@ -35,14 +35,12 @@ async def test_create_movie_success_as_admin(
         "imdb": 8.6,
         "votes": 1500000,
         "price": 14.99,
-        "description": "A team of explorers travel through"
-                       " a wormhole in space.",
+        "description": "A team of explorers travel through" " a wormhole in space.",
         "certification_id": certification.id,
         "directors": [director.id],
         "stars": [star.id],
-        "genres": [genre.id]
+        "genres": [genre.id],
     }
-
 
     response = await admin_client.post("movies/", json=payload)
 
@@ -59,7 +57,7 @@ async def test_create_movie_success_as_moderator(
     create_test_director,
     create_test_star,
     create_test_genre,
-    create_test_certification
+    create_test_certification,
 ):
     """
     Test that a moderator user can successfully create a new movie.
@@ -84,13 +82,12 @@ async def test_create_movie_success_as_moderator(
         "votes": 1500000,
         "price": 14.99,
         "description": "It follows an indestructible cyborg assassin sent"
-                       " back in time to assassinate Sarah Connor",
+        " back in time to assassinate Sarah Connor",
         "certification_id": certification.id,
         "directors": [director.id],
         "stars": [star.id],
-        "genres": [genre.id]
+        "genres": [genre.id],
     }
-
 
     response = await moderator_client.post("movies/", json=payload)
 
@@ -102,10 +99,7 @@ async def test_create_movie_success_as_moderator(
 
 
 @pytest.mark.asyncio
-async def test_create_movie_forbidden_for_user(
-        auth_client,
-        create_test_certification
-):
+async def test_create_movie_forbidden_for_user(auth_client, create_test_certification):
     """
     Test that a regular authenticated user cannot
     create a movie (403 Forbidden).
@@ -123,15 +117,16 @@ async def test_create_movie_forbidden_for_user(
         "votes": 2000000,
         "price": 9.99,
         "description": "A thief who steals corporate secrets through "
-                       "the use of dream-sharing technology.",
+        "the use of dream-sharing technology.",
         "certification_id": certification.id,
         "director_ids": [],
         "star_ids": [],
-        "genre_ids": []
+        "genre_ids": [],
     }
 
     response = await auth_client.post("movies/", json=payload)
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
 
 @pytest.mark.asyncio
 async def test_create_movie_conflict(admin_client, create_test_movie):
@@ -142,10 +137,7 @@ async def test_create_movie_conflict(admin_client, create_test_movie):
     :param create_test_movie:
     :return:
     """
-    existing_movie = await create_test_movie(
-        name="The Dark Knight",
-        year=2008
-    )
+    existing_movie = await create_test_movie(name="The Dark Knight", year=2008)
     payload = {
         "name": existing_movie.name,
         "year": existing_movie.year,
@@ -157,15 +149,17 @@ async def test_create_movie_conflict(admin_client, create_test_movie):
         "certification_id": existing_movie.certification_id,
         "director_ids": [],
         "star_ids": [],
-        "genre_ids": []
+        "genre_ids": [],
     }
     response = await admin_client.post("movies/", json=payload)
 
     assert response.status_code == status.HTTP_409_CONFLICT
 
+
 # ==============================================================================
 # READ (GET) & FILTERING TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_filter_movies_by_year(client, create_test_movie):
@@ -189,6 +183,8 @@ async def test_filter_movies_by_year(client, create_test_movie):
     assert data["items"][0]["name"] == "Old Movie"
     assert data["items"][0]["year"] == 1999
 
+
+@pytest.mark.asyncio
 async def test_get_movie_by_id_success(client, create_test_movie):
     """
     Test retrieving a specific movie by its ID.
@@ -204,6 +200,7 @@ async def test_get_movie_by_id_success(client, create_test_movie):
     assert data["id"] == movie.id
     assert data["name"] == "Pulp Fiction"
 
+
 async def test_get_movie_by_id_not_found(client):
     """
     Test retrieving a non-existent movie returns a 404 Not Found.
@@ -213,9 +210,11 @@ async def test_get_movie_by_id_not_found(client):
     response = await client.get("movies/99999/")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
+
 # ==============================================================================
 # UPDATE (PATCH) TESTS
 # ==============================================================================
+
 
 async def test_update_movie_success(admin_client, create_test_movie):
     """
@@ -228,15 +227,9 @@ async def test_update_movie_success(admin_client, create_test_movie):
 
     movie.price = 25.00
 
-    updated_payload = {
-        "name": "Updated name",
-        "price": 15.99
-    }
+    updated_payload = {"name": "Updated name", "price": 15.99}
 
-    response = await admin_client.patch(
-        f"movies/{movie.id}/",
-        json=updated_payload
-    )
+    response = await admin_client.patch(f"movies/{movie.id}/", json=updated_payload)
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -244,11 +237,7 @@ async def test_update_movie_success(admin_client, create_test_movie):
     assert float(data["price"]) == 15.99
 
 
-
-async def test_update_movie_success_as_moderator(
-        moderator_client,
-        create_test_movie
-):
+async def test_update_movie_success_as_moderator(moderator_client, create_test_movie):
     """
     Test that an admin can successfully update a movie's details.
     :param moderator_client:
@@ -259,15 +248,9 @@ async def test_update_movie_success_as_moderator(
 
     movie.price = 25.00
 
-    updated_payload = {
-        "name": "Updated name",
-        "price": 15.99
-    }
+    updated_payload = {"name": "Updated name", "price": 15.99}
 
-    response = await moderator_client.patch(
-        f"movies/{movie.id}/",
-        json=updated_payload
-    )
+    response = await moderator_client.patch(f"movies/{movie.id}/", json=updated_payload)
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -275,12 +258,8 @@ async def test_update_movie_success_as_moderator(
     assert float(data["price"]) == 15.99
 
 
-
 @pytest.mark.asyncio
-async def test_update_movie_forbidden_for_user(
-        auth_client,
-        create_test_movie
-):
+async def test_update_movie_forbidden_for_user(auth_client, create_test_movie):
     """
      Test that a regular user cannot update a movie.
     :param auth_client:
@@ -289,14 +268,14 @@ async def test_update_movie_forbidden_for_user(
     """
     movie = await create_test_movie(name="Untouchable Movie")
 
-    response = await auth_client.patch(
-        f"movies/{movie.id}/",
-        json={"name": "Hacked"}
-    )
+    response = await auth_client.patch(f"movies/{movie.id}/", json={"name": "Hacked"})
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
 # ==============================================================================
 # DELETE TESTS
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_delete_movie_success(admin_client, create_test_movie):
@@ -313,10 +292,10 @@ async def test_delete_movie_success(admin_client, create_test_movie):
     get_response = await admin_client.get(f"movies/{movie.id}/")
     assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
+
 @pytest.mark.asyncio
 async def test_delete_movie_forbidden_for_moderator(
-        moderator_client,
-        create_test_movie
+    moderator_client, create_test_movie
 ):
     """
     Test that a regular user cannot delete a movie.
@@ -330,10 +309,7 @@ async def test_delete_movie_forbidden_for_moderator(
 
 
 @pytest.mark.asyncio
-async def test_delete_movie_forbidden_for_user(
-        auth_client,
-        create_test_movie
-):
+async def test_delete_movie_forbidden_for_user(auth_client, create_test_movie):
     """
     Test that a regular user cannot delete a movie.
     :param admin_client:

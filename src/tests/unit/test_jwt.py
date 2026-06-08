@@ -13,8 +13,9 @@ def jwt_manager():
     return JWTAuthManager(
         secret_key_access="super_secret_access_key",
         secret_key_refresh="super_secret_refresh_key",
-        algorithm="HS256"
+        algorithm="HS256",
     )
+
 
 def test_create_and_decode_access_token_success(jwt_manager):
     """
@@ -29,6 +30,7 @@ def test_create_and_decode_access_token_success(jwt_manager):
     decoded_pyaload = jwt_manager.decode_access_token(token)
 
     assert decoded_pyaload.get("user_id") == 33
+
 
 def test_decode_invalid_token_raises_error(jwt_manager):
     """

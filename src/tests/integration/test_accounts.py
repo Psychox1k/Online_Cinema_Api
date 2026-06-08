@@ -3,7 +3,6 @@ from fastapi import status
 from sqlalchemy import select
 
 from database import UserModel, ActivationTokenModel, UserGroupModel, UserGroupEnum
-from notifications import EmailSenderInterface
 from security.passwords import hash_password
 
 
@@ -20,14 +19,9 @@ async def test_register_user_success(client, db_session):
     :param db_session:
     :return:
     """
-    register_payload = {
-        "email": "test@gmail.com",
-        "password": "Strong_password1234@!"
-    }
+    register_payload = {"email": "test@gmail.com", "password": "Strong_password1234@!"}
 
-    response = await client.post(
-        "accounts/register/", json=register_payload
-    )
+    response = await client.post("accounts/register/", json=register_payload)
 
     assert response.status_code == status.HTTP_201_CREATED
 
@@ -61,9 +55,7 @@ async def test_register_user_duplicate_email_fails(client, db_session):
     :param db_session:
     :return:
     """
-    group_stmt = select(UserGroupModel).where(
-        UserGroupModel.name == UserGroupEnum.USER
-    )
+    group_stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
     group_result = await db_session.execute(group_stmt)
     user_group = group_result.scalar_one()
 
@@ -71,19 +63,14 @@ async def test_register_user_duplicate_email_fails(client, db_session):
         email="test1@gmail.com",
         _hashed_password=hash_password("Password1234@!"),
         group_id=user_group.id,
-        is_active=False
+        is_active=False,
     )
     db_session.add(existing_user)
     await db_session.commit()
 
-    register_payload = {
-        "email" : "test1@gmail.com",
-        "password": "Password1234@!"
-    }
+    register_payload = {"email": "test1@gmail.com", "password": "Password1234@!"}
 
-    response = await client.post(
-        "accounts/register/", json=register_payload
-    )
+    response = await client.post("accounts/register/", json=register_payload)
     assert response.status_code == status.HTTP_409_CONFLICT
 
     response_data = response.json()
@@ -109,20 +96,15 @@ async def test_user_login_success(client, db_session):
         email="login_me@example.com",
         _hashed_password=hash_password(raw_password),
         is_active=True,
-        group_id=user_group.id
+        group_id=user_group.id,
     )
 
     db_session.add(active_user)
     await db_session.commit()
 
-    login_payload = {
-        "email": "login_me@example.com",
-        "password": raw_password
-    }
+    login_payload = {"email": "login_me@example.com", "password": raw_password}
 
-    response = await client.post(
-        "accounts/login/", json=login_payload
-    )
+    response = await client.post("accounts/login/", json=login_payload)
 
     assert response.status_code == status.HTTP_200_OK
     response_data = response.json()
@@ -140,9 +122,7 @@ async def test_user_login_wrong_password_fails(client, db_session):
     :param db_session:
     :return:
     """
-    group_stmt = select(UserGroupModel).where(
-        UserGroupModel.name == UserGroupEnum.USER
-    )
+    group_stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
     group_result = await db_session.execute(group_stmt)
     user_group = group_result.scalar_one()
 
@@ -150,18 +130,16 @@ async def test_user_login_wrong_password_fails(client, db_session):
         email="wrong_pass@example.com",
         _hashed_password=hash_password("CorrectPassword123!"),
         is_active=True,
-        group_id=user_group.id
+        group_id=user_group.id,
     )
     db_session.add(active_user)
     await db_session.commit()
 
     login_payload = {
         "email": "wrong_pass@example.com",
-        "password": "InCorrectPasswor112d!"
+        "password": "InCorrectPasswor112d!",
     }
-    response = await client.post(
-        "accounts/login/", json=login_payload
-    )
+    response = await client.post("accounts/login/", json=login_payload)
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -177,9 +155,7 @@ async def test_activate_account_success(client, db_session):
     :param db_session:
     :return:
     """
-    group_stmt = select(UserGroupModel).where(
-        UserGroupModel.name == UserGroupEnum.USER
-    )
+    group_stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
     result = await db_session.execute(group_stmt)
     db_group = result.scalar_one_or_none()
 
@@ -187,7 +163,7 @@ async def test_activate_account_success(client, db_session):
         email="test_activate_user@gmail.com",
         _hashed_password=hash_password("CorrectPassword123!"),
         group_id=db_group.id,
-        is_active=False
+        is_active=False,
     )
     db_session.add(user)
     await db_session.flush()
@@ -197,11 +173,8 @@ async def test_activate_account_success(client, db_session):
     await db_session.commit()
 
     response = await client.post(
-            "accounts/activate/",
-        json={
-            "token": str(token.token),
-            "email": "test_activate_user@gmail.com"
-        }
+        "accounts/activate/",
+        json={"token": str(token.token), "email": "test_activate_user@gmail.com"},
     )
 
     assert response.status_code == status.HTTP_200_OK
