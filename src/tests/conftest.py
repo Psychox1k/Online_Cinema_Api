@@ -41,7 +41,7 @@ from config.dependencies import (
 # ==============================================================================
 os.environ["DATABASE_URL"] = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres_password@localhost:5432/cinema_db_test"
+    "postgresql+asyncpg://postgres:postgres_password@localhost:5432/cinema_db_test",
 )
 os.environ["POSTGRES_HOST"] = os.getenv("POSTGRES_HOST", "localhost")
 os.environ["POSTGRES_DB"] = os.getenv("POSTGRES_DB", "cinema_db_test")
