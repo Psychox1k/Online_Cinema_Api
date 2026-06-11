@@ -1,0 +1,20 @@
+name: CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
+    branches:
+      - "main"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: CD Placeholder
+        run: |
+          echo "CI pipeline passed successfully!"
+          echo "This is the dedicated CD pipeline."
+          echo "AWS EC2 deployment logic will be configured here later."
